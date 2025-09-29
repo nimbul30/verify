@@ -67,8 +67,6 @@ class AI_Verification_Assistant:
         """Runs all automated phases and prints a final report."""
         print("--- Starting Automated Verification Process ---")
         self.phase1_triage()
-        self.phase2_deep_dive()
-        self.phase3_quality_consult()
         print("\n--- Automated Verification Process Complete ---")
         self.print_report()
 
@@ -84,29 +82,34 @@ class AI_Verification_Assistant:
         }
 
     def _check_source_links(self):
-        """Performs Link Validation and Domain Reputation Analysis."""
+        """Performs Link Validation and Domain Reputation Analysis for URLs and identifies non-URL sources."""
         results = []
-        for url in self.source_urls:
-            try:
-                # In a real-world scenario, you would use a library like BeautifulSoup
-                # to scrape the actual content. For this example, we'll continue to mock it.
-                print(f"Fetching content for {url}...")
-                self.sources_content[url] = f"Mock source content for {url}. Innovate Inc. confirms the 'Quantum' phone with a 'Photonic' chip, increasing speed by 50%. CEO Jane Doe is quoted. 1,000,000 units are planned for the October 26th launch."
-                parsed_url = urlparse(url)
-                domain = parsed_url.netloc
-                tld = domain.split('.')[-1]
+        for source in self.source_urls:
+            # Check if the source is a URL by attempting to parse it
+            if source.startswith('http://') or source.startswith('https://'):
+                try:
+                    # In a real-world scenario, you would use a library like BeautifulSoup
+                    # to scrape the actual content. For this example, we'll continue to mock it.
+                    print(f"Fetching content for {source}...")
+                    self.sources_content[source] = f"Mock source content for {source}. Innovate Inc. confirms the 'Quantum' phone with a 'Photonic' chip, increasing speed by 50%. CEO Jane Doe is quoted. 1,000,000 units are planned for the October 26th launch."
+                    parsed_url = urlparse(source)
+                    domain = parsed_url.netloc
+                    tld = domain.split('.')[-1]
 
-                if tld in ['gov', 'edu']:
-                    domain_type = "High-Reputation (Government/Education)"
-                elif any(news in domain for news in ['reuters', 'ap', 'bbc', 'wsj']):
-                    domain_type = "Reputable News Source"
-                else:
-                    domain_type = "General/Blog"
+                    if tld in ['gov', 'edu']:
+                        domain_type = "High-Reputation (Government/Education)"
+                    elif any(news in domain for news in ['reuters', 'ap', 'bbc', 'wsj']):
+                        domain_type = "Reputable News Source"
+                    else:
+                        domain_type = "General/Blog"
 
-                results.append({'url': url, 'status': '200 OK (Mocked)', 'domain_type': domain_type})
+                    results.append({'url': source, 'status': 'URL', 'domain_type': domain_type})
 
-            except requests.RequestException as e:
-                results.append({'url': url, 'status': 'Error', 'reason': str(e)})
+                except requests.RequestException as e:
+                    results.append({'url': source, 'status': 'Error', 'reason': str(e)})
+            else:
+                # If it's not a URL, treat it as a non-URL reference
+                results.append({'url': source, 'status': 'Non-URL Reference', 'domain_type': 'Needs Manual Verification'})
         return results
 
     # MODIFIED: This function now performs deep verification.
@@ -136,82 +139,6 @@ class AI_Verification_Assistant:
         }
         return call_gemini_api(system_prompt, user_content, schema)
 
-    # --- PHASE 2: DEEP DIVE ---
-    def phase2_deep_dive(self):
-        print("\n--- Running Phase 2: Factual Deep Dive ---")
-        self.verification_report['Phase 2: Factual Deep Dive'] = {
-            'Extracted Entities for Verification': self._extract_entities()
-        }
-
-    def _extract_entities(self):
-        """Uses Gemini to extract all verifiable data points."""
-        system_prompt = "You are a data extraction tool. From the user's article, extract all key entities into structured lists for verification."
-        user_content = self.article_text
-        schema = {
-            "type": "OBJECT", "properties": {
-                "entities": { "type": "OBJECT", "properties": {
-                        "personal_names_titles": {"type": "ARRAY", "items": {"type": "STRING"}},
-                        "organization_names": {"type": "ARRAY", "items": {"type": "STRING"}},
-                        "numbers_statistics": {"type": "ARRAY", "items": {"type": "STRING"}},
-                        "dates_times": {"type": "ARRAY", "items": {"type": "STRING"}},
-                        "locations": {"type": "ARRAY", "items": {"type": "STRING"}}
-                }}
-            }
-        }
-        return call_gemini_api(system_prompt, user_content, schema)
-
-    # --- PHASE 3: QUALITY & ETHICS ---
-    def phase3_quality_consult(self):
-        print("\n--- Running Phase 3: Quality & Ethics ---")
-        self.verification_report['Phase 3: Quality & Ethics Consultant'] = {
-            'Bias and Sentiment Analysis': self._analyze_bias(),
-            'Readability and Style Editing': self._edit_style()
-        }
-
-    def _analyze_bias(self):
-        """Uses Gemini to analyze for bias and suggest neutral alternatives."""
-        system_prompt = "You are an ethics and fairness editor. Analyze the article for bias, loaded language, or unfair framing. Suggest neutral alternatives for any flagged phrases."
-        user_content = self.article_text
-        schema = {
-            "type": "OBJECT", "properties": {
-                "bias_analysis": { "type": "OBJECT", "properties": {
-                    "flagged_phrases": {"type": "ARRAY", "items": {
-                        "type": "OBJECT", "properties": {
-                            "phrase": {"type": "STRING"},
-                            "suggestion": {"type": "STRING"}
-                        }
-                    }},
-                    "overall_sentiment": {"type": "STRING"},
-                    "framing": {"type": "STRING"}
-                }}
-            }
-        }
-        return call_gemini_api(system_prompt, user_content, schema)
-
-    def _edit_style(self):
-        """Uses Gemini to suggest style and readability improvements."""
-        system_prompt = "You are a senior copy editor. Review the article for style, clarity, and impact. Correct passive voice, simplify complex sentences, and suggest three compelling, SEO-friendly headlines."
-        user_content = self.article_text
-        schema = {
-            "type": "OBJECT", "properties": {
-                "style_suggestions": { "type": "OBJECT", "properties": {
-                    "passive_voice_corrections": {"type": "ARRAY", "items": {
-                        "type": "OBJECT", "properties": {
-                            "original": {"type": "STRING"},
-                            "suggestion": {"type": "STRING"}
-                        }
-                    }},
-                    "simplifications": {"type": "ARRAY", "items": {
-                        "type": "OBJECT", "properties": {
-                            "original": {"type": "STRING"},
-                            "suggestion": {"type": "STRING"}
-                        }
-                    }},
-                    "headline_suggestions": {"type": "ARRAY", "items": {"type": "STRING"}}
-                }}
-            }
-        }
-        return call_gemini_api(system_prompt, user_content, schema)
 
     def print_report(self):
         """Prints the final, structured report for the human verifier."""
