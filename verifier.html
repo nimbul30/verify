@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI-Assisted Verification Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: 'Inter', sans-serif;
+      }
+      .spinner {
+        border-top-color: #3498db;
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .report-section {
+        border-bottom: 1px solid #e2e8f0;
+        padding-bottom: 1rem;
+        margin-bottom: 1rem;
+      }
+      .report-section:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-100 text-gray-800">
+    <div class="container mx-auto p-4 md:p-8">
+      <header class="text-center mb-8">
+        <h1 class="text-3xl md:text-4xl font-bold text-gray-900">
+          AI-Assisted Verification Tool
+        </h1>
+        <p class="text-md text-gray-600 mt-2">
+          Automate the preliminary checks of your AI-generated content.
+        </p>
+      </header>
+
+      <main class="bg-white rounded-lg shadow-md p-6 max-w-4xl mx-auto">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Input Column -->
+          <div>
+            <h2 class="text-xl font-semibold mb-3">1. Paste Your Content</h2>
+            <div>
+              <label
+                for="article-input"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >Article Text</label
+              >
+              <textarea
+                id="article-input"
+                rows="12"
+                class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                placeholder="Paste the full text of the article you want to verify here..."
+              ></textarea>
+            </div>
+            <div class="mt-4">
+              <label
+                for="sources-input"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >Source URLs (one per line)</label
+              >
+              <textarea
+                id="sources-input"
+                rows="6"
+                class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                placeholder="https://www.example.com/source1&#10;https://www.anothersource.com/data"
+              ></textarea>
+            </div>
+          </div>
+
+          <!-- Control & API Key Column -->
+          <div>
+            <h2 class="text-xl font-semibold mb-3">
+              2. Get Verification Report
+            </h2>
+            <div class="mb-4">
+              <label
+                for="api-key-input"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >Your Gemini API Key</label
+              >
+              <input
+                type="password"
+                id="api-key-input"
+                class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                placeholder="Paste your API key here"
+              />
+            </div>
+            <button
+              id="verify-button"
+              class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out"
+            >
+              Verify Article
+            </button>
+
+            <div id="status-container" class="mt-4 text-center">
+              <div
+                id="loader"
+                class="hidden spinner w-8 h-8 border-4 rounded-full mx-auto"
+              ></div>
+              <p id="status-text" class="text-gray-600 font-medium mt-2"></p>
+            </div>
+          </div>
+        </div>
+        <!-- Report Output Section -->
+        <div
+          id="report-output"
+          class="hidden mt-6 pt-6 border-t border-gray-200"
+        >
+          <h2 class="text-2xl font-bold text-gray-900 mb-4 text-center">
+            Verification Report
+          </h2>
+          <div id="report-content" class="bg-gray-50 p-4 rounded-lg">
+            <!-- Dynamic report content will be injected here -->
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      const verifyButton = document.getElementById('verify-button');
+      const articleInput = document.getElementById('article-input');
+      const sourcesInput = document.getElementById('sources-input');
+      const apiKeyInput = document.getElementById('api-key-input');
+      const loader = document.getElementById('loader');
+      const statusText = document.getElementById('status-text');
+      const reportOutput = document.getElementById('report-output');
+      const reportContent = document.getElementById('report-content');
+
+      verifyButton.addEventListener('click', async () => {
+        const apiKey = apiKeyInput.value.trim();
+        const articleText = articleInput.value.trim();
+        const sourceUrls = sourcesInput.value
+          .trim()
+          .split('\n')
+          .filter((url) => url);
+
+        if (!apiKey) {
+          alert('Please provide your Gemini API key to continue.');
+          return;
+        }
+        if (!articleText || sourceUrls.length === 0) {
+          alert('Please provide both an article and at least one source URL.');
+          return;
+        }
+
+        // Reset UI
+        reportOutput.classList.add('hidden');
+        loader.classList.remove('hidden');
+        verifyButton.disabled = true;
+        verifyButton.classList.add('opacity-50', 'cursor-not-allowed');
+
+        const assistant = new AI_Verification_Assistant(
+          articleText,
+          sourceUrls,
+          apiKey
+        );
+        const report = await assistant.run_full_verification();
+
+        // Render and Display report
+        renderHtmlReport(report);
+        reportOutput.classList.remove('hidden');
+        loader.classList.add('hidden');
+        statusText.textContent = 'Verification Complete!';
+
+        // Re-enable button
+        verifyButton.disabled = false;
+        verifyButton.classList.remove('opacity-50', 'cursor-not-allowed');
+      });
+
+      function renderHtmlReport(report) {
+        reportContent.innerHTML = ''; // Clear previous report
+
+        // Phase 1
+        const phase1 = report['Phase 1: Triage'];
+        if (phase1) {
+          let phase1Html = `<div class="report-section">
+                    <h3 class="text-xl font-semibold mb-3 text-gray-800">Phase 1: Triage</h3>`;
+
+          // Source Links
+          const links = phase1['Source Link Check'];
+          if (links && links.length > 0) {
+            phase1Html += `<h4 class="text-lg font-semibold mb-2 text-gray-700">Source Link Analysis</h4><ul class="list-disc list-inside space-y-1 text-sm">`;
+            links.forEach((link) => {
+              phase1Html += `<li><a href="${link.url}" target="_blank" class="text-blue-600 hover:underline">${link.url}</a> - <span class="font-medium">${link.domain_type}</span></li>`;
+            });
+            phase1Html += `</ul>`;
+          }
+
+          // Claim Mapping
+          const claims = phase1['Claim-to-Source Mapping']?.verification_claims;
+          if (claims && claims.length > 0) {
+            phase1Html += `<h4 class="text-lg font-semibold mt-4 mb-2 text-gray-700">Claim-to-Source Mapping</h4><ul class="list-decimal list-inside space-y-2 text-sm">`;
+            claims.forEach((item) => {
+              phase1Html += `<li><strong>Claim:</strong> ${item.claim}<br><strong>Assessment:</strong> ${item.source_evidence_assessment}</li>`;
+            });
+            phase1Html += `</ul>`;
+          }
+          phase1Html += `</div>`;
+          reportContent.innerHTML += phase1Html;
+        }
+
+        // Phase 2
+        const phase2 = report['Phase 2: Factual Deep Dive'];
+        if (phase2) {
+          let phase2Html = `<div class="report-section">
+                    <h3 class="text-xl font-semibold mb-3 text-gray-800">Phase 2: Factual Deep Dive</h3>`;
+          const entities =
+            phase2['Extracted Entities for Verification']?.entities;
+          if (entities) {
+            phase2Html += `<h4 class="text-lg font-semibold mb-2 text-gray-700">Extracted Entities for Verification</h4>`;
+            for (const [key, value] of Object.entries(entities)) {
+              if (value && value.length > 0) {
+                const title = key
+                  .replace(/_/g, ' ')
+                  .replace(/\b\w/g, (l) => l.toUpperCase());
+                phase2Html += `<p class="mt-2 mb-1 text-sm font-semibold">${title}:</p><div class="flex flex-wrap gap-2 text-xs">`;
+                value.forEach((item) => {
+                  phase2Html += `<span class="bg-gray-200 text-gray-800 px-2 py-1 rounded-full">${item}</span>`;
+                });
+                phase2Html += `</div>`;
+              }
+            }
+          }
+          phase2Html += `</div>`;
+          reportContent.innerHTML += phase2Html;
+        }
+
+        // Phase 3
+        const phase3 = report['Phase 3: Quality & Ethics Consultant'];
+        if (phase3) {
+          let phase3Html = `<div class="report-section">
+                    <h3 class="text-xl font-semibold mb-3 text-gray-800">Phase 3: Quality & Ethics Consultant</h3>`;
+
+          // Bias Analysis
+          const bias = phase3['Bias and Sentiment Analysis']?.bias_analysis;
+          if (bias) {
+            phase3Html += `<h4 class="text-lg font-semibold mb-2 text-gray-700">Bias & Sentiment Analysis</h4>`;
+            phase3Html += `<p class="text-sm"><strong>Overall Sentiment:</strong> ${
+              bias.overall_sentiment || 'N/A'
+            }</p>`;
+            phase3Html += `<p class="text-sm"><strong>Framing:</strong> ${
+              bias.framing || 'N/A'
+            }</p>`;
+            if (bias.flagged_phrases && bias.flagged_phrases.length > 0) {
+              phase3Html += `<div class="mt-2 text-sm">`;
+              bias.flagged_phrases.forEach((item) => {
+                phase3Html += `<div class="mt-1 p-2 bg-yellow-100 border-l-4 border-yellow-500 rounded-r-lg"><p><strong>Flagged:</strong> "${item.phrase}"</p><p><strong>Suggestion:</strong> "${item.suggestion}"</p></div>`;
+              });
+              phase3Html += `</div>`;
+            }
+          }
+
+          // Style Editing
+          const style =
+            phase3['Readability and Style Editing']?.style_suggestions;
+          if (style) {
+            phase3Html += `<h4 class="text-lg font-semibold mt-4 mb-2 text-gray-700">Readability & Style Editing</h4>`;
+            if (
+              style.headline_suggestions &&
+              style.headline_suggestions.length > 0
+            ) {
+              phase3Html += `<p class="text-sm font-semibold mb-1">Headline Suggestions:</p><ul class="list-disc list-inside text-sm space-y-1">`;
+              style.headline_suggestions.forEach((h) => {
+                phase3Html += `<li>${h}</li>`;
+              });
+              phase3Html += `</ul>`;
+            }
+          }
+
+          phase3Html += `</div>`;
+          reportContent.innerHTML += phase3Html;
+        }
+      }
+
+      async function call_gemini_api(
+        apiKey,
+        system_prompt,
+        user_content,
+        schema = null,
+        max_retries = 3
+      ) {
+        console.log(
+          `--- Calling Gemini API... (Prompt: ${system_prompt.substring(
+            0,
+            50
+          )}...) ---`
+        );
+        const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+        const headers = { 'Content-Type': 'application/json' };
+        const payload = {
+          systemInstruction: { parts: [{ text: system_prompt }] },
+          contents: [{ parts: [{ text: user_content }] }],
+        };
+
+        if (schema) {
+          payload.generationConfig = {
+            responseMimeType: 'application/json',
+            responseSchema: schema,
+          };
+        }
+
+        for (let attempt = 0; attempt < max_retries; attempt++) {
+          try {
+            const response = await fetch(GEMINI_API_URL, {
+              method: 'POST',
+              headers: headers,
+              body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            const candidate = result.candidates?.[0];
+            const text_response = candidate?.content?.parts?.[0]?.text;
+
+            if (!text_response) {
+              throw new Error('Invalid response structure from API.');
+            }
+
+            return JSON.parse(text_response);
+          } catch (e) {
+            if (attempt < max_retries - 1) {
+              const wait_time = 2 ** attempt;
+              console.log(
+                `API request failed with error: ${e}. Retrying in ${wait_time} seconds...`
+              );
+              await new Promise((resolve) =>
+                setTimeout(resolve, wait_time * 1000)
+              );
+            } else {
+              console.error(
+                `API request failed after ${max_retries} attempts. Error: ${e}`
+              );
+              statusText.textContent = `Error: API request failed. Check the console for details.`;
+              return JSON.parse('{}'); // Return empty JSON on final failure
+            }
+          }
+        }
+      }
+
+      class AI_Verification_Assistant {
+        constructor(article_text, source_urls, apiKey) {
+          this.article_text = article_text;
+          this.source_urls = source_urls;
+          this.apiKey = apiKey;
+          this.verification_report = {};
+        }
+
+        async run_full_verification() {
+          statusText.textContent = 'Running Phase 1: Triage...';
+          await this.phase1_triage();
+
+          statusText.textContent = 'Running Phase 2: Factual Deep Dive...';
+          await this.phase2_deep_dive();
+
+          statusText.textContent = 'Running Phase 3: Quality & Ethics...';
+          await this.phase3_quality_consult();
+
+          return this.verification_report;
+        }
+
+        async phase1_triage() {
+          const source_check_results = this._check_source_links();
+          const claim_mapping = await this._map_claims_to_sources();
+          this.verification_report['Phase 1: Triage'] = {
+            'Source Link Check': source_check_results,
+            'Claim-to-Source Mapping': claim_mapping,
+          };
+        }
+
+        _check_source_links() {
+          return this.source_urls.map((url) => {
+            try {
+              const parsed_url = new URL(url);
+              const domain = parsed_url.hostname;
+              const tld = domain.split('.').pop();
+              let domain_type = 'General/Blog';
+
+              if (['gov', 'edu'].includes(tld)) {
+                domain_type = 'High-Reputation (Government/Education)';
+              } else if (
+                ['reuters.com', 'apnews.com', 'bbc.com', 'wsj.com'].some((d) =>
+                  domain.includes(d)
+                )
+              ) {
+                domain_type = 'Reputable News Source';
+              }
+              return {
+                url,
+                status: 'Domain Analyzed (Live Check N/A)',
+                domain_type,
+              };
+            } catch (e) {
+              return { url, status: 'Error', reason: 'Invalid URL format' };
+            }
+          });
+        }
+
+        async _map_claims_to_sources() {
+          const system_prompt =
+            'You are a verification expert. Analyze the user-provided article. Create a list of the key claims from the article. Based on the source URLs provided and your own knowledge, assess if these claims are plausible and likely to be supported. State this assessment clearly.';
+          const user_content = `ARTICLE:\n${
+            this.article_text
+          }\n\nSOURCE URLs:\n${this.source_urls.join('\n')}`;
+          const schema = {
+            type: 'OBJECT',
+            properties: {
+              verification_claims: {
+                type: 'ARRAY',
+                items: {
+                  type: 'OBJECT',
+                  properties: {
+                    claim: { type: 'STRING' },
+                    source_evidence_assessment: { type: 'STRING' },
+                  },
+                  required: ['claim', 'source_evidence_assessment'],
+                },
+              },
+            },
+          };
+          return call_gemini_api(
+            this.apiKey,
+            system_prompt,
+            user_content,
+            schema
+          );
+        }
+
+        async phase2_deep_dive() {
+          this.verification_report['Phase 2: Factual Deep Dive'] = {
+            'Extracted Entities for Verification':
+              await this._extract_entities(),
+          };
+        }
+
+        async _extract_entities() {
+          const system_prompt =
+            "You are a data extraction tool. From the user's article, extract all key entities into structured lists for verification.";
+          const schema = {
+            type: 'OBJECT',
+            properties: {
+              entities: {
+                type: 'OBJECT',
+                properties: {
+                  personal_names_titles: {
+                    type: 'ARRAY',
+                    items: { type: 'STRING' },
+                  },
+                  organization_names: {
+                    type: 'ARRAY',
+                    items: { type: 'STRING' },
+                  },
+                  numbers_statistics: {
+                    type: 'ARRAY',
+                    items: { type: 'STRING' },
+                  },
+                  dates_times: { type: 'ARRAY', items: { type: 'STRING' } },
+                  locations: { type: 'ARRAY', items: { type: 'STRING' } },
+                },
+              },
+            },
+          };
+          return call_gemini_api(
+            this.apiKey,
+            system_prompt,
+            this.article_text,
+            schema
+          );
+        }
+
+        async phase3_quality_consult() {
+          this.verification_report['Phase 3: Quality & Ethics Consultant'] = {
+            'Bias and Sentiment Analysis': await this._analyze_bias(),
+            'Readability and Style Editing': await this._edit_style(),
+          };
+        }
+
+        async _analyze_bias() {
+          const system_prompt =
+            'You are an ethics and fairness editor. Analyze the article for bias, loaded language, or unfair framing. Suggest neutral alternatives for any flagged phrases.';
+          const schema = {
+            type: 'OBJECT',
+            properties: {
+              bias_analysis: {
+                type: 'OBJECT',
+                properties: {
+                  flagged_phrases: {
+                    type: 'ARRAY',
+                    items: {
+                      type: 'OBJECT',
+                      properties: {
+                        phrase: { type: 'STRING' },
+                        suggestion: { type: 'STRING' },
+                      },
+                    },
+                  },
+                  overall_sentiment: { type: 'STRING' },
+                  framing: { type: 'STRING' },
+                },
+              },
+            },
+          };
+          return call_gemini_api(
+            this.apiKey,
+            system_prompt,
+            this.article_text,
+            schema
+          );
+        }
+
+        async _edit_style() {
+          const system_prompt =
+            'You are a senior copy editor. Review the article for style, clarity, and impact. Correct passive voice, simplify complex sentences, and suggest three compelling, SEO-friendly headlines.';
+          const schema = {
+            type: 'OBJECT',
+            properties: {
+              style_suggestions: {
+                type: 'OBJECT',
+                properties: {
+                  passive_voice_corrections: {
+                    type: 'ARRAY',
+                    items: {
+                      type: 'OBJECT',
+                      properties: {
+                        original: { type: 'STRING' },
+                        suggestion: { type: 'STRING' },
+                      },
+                    },
+                  },
+                  simplifications: {
+                    type: 'ARRAY',
+                    items: {
+                      type: 'OBJECT',
+                      properties: {
+                        original: { type: 'STRING' },
+                        suggestion: { type: 'STRING' },
+                      },
+                    },
+                  },
+                  headline_suggestions: {
+                    type: 'ARRAY',
+                    items: { type: 'STRING' },
+                  },
+                },
+              },
+            },
+          };
+          return call_gemini_api(
+            this.apiKey,
+            system_prompt,
+            this.article_text,
+            schema
+          );
+        }
+      }
+    </script>
+  </body>
+</html>
