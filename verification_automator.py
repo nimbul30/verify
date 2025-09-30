@@ -2,6 +2,7 @@ import requests
 import json
 import time
 from urllib.parse import urlparse
+import argparse
 
 # --- Gemini API Configuration ---
 # The Canvas environment will automatically provide the API key. DO NOT populate this variable.
@@ -230,8 +231,20 @@ class AI_Verification_Assistant:
         print("="*50)
 
 
+    def run_markup_only_verification(self):
+        """Runs only the markup generation and prints the report."""
+        print("--- Starting Markup-Only Process ---")
+        self.verification_report['Markup System'] = self.generate_markup()
+        print("\n--- Markup Process Complete ---")
+        self.print_report()
+
+
 # --- EXAMPLE USAGE ---
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='AI-Assisted Verification Tool.')
+    parser.add_argument('--markup-only', action='store_true', help='Run only the markup generation process.')
+    args = parser.parse_args()
+
     mock_article = """
     Silicon Valley, CA - In a landmark announcement, global tech giant Innovate Inc. launched its revolutionary 'Quantum' smartphone today.
     The device, which is set to dominate the market, features a new 'Photonic' chip, promising a 50% increase in processing speed.
@@ -240,10 +253,14 @@ if __name__ == "__main__":
     Sources claim 1,000,000 units will be available at launch on October 26th. A new claim not in the sources is that the phone is made of titanium.
     """
     mock_source_list = [
-        "https://www.reuters.com/innovate-inc-press-release",
-        "https://www.wsj.com/tech/new-photonic-chip-details",
+        "https.reuters.com/innovate-inc-press-release",
+        "https.wsj.com/tech/new-photonic-chip-details",
         "Dr. Evelyn Reed, a leading expert in photonic technology",
         "The 2023 Annual Report on Semiconductor Advances"
     ]
+
     assistant = AI_Verification_Assistant(mock_article, mock_source_list)
-    assistant.run_full_verification()
+    if args.markup_only:
+        assistant.run_markup_only_verification()
+    else:
+        assistant.run_full_verification()
