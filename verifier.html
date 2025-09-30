@@ -194,8 +194,8 @@
           if (links && links.length > 0) {
             phase1Html += `<h4 class="text-lg font-semibold mb-2 text-gray-700">Source Link Analysis</h4><ul class="list-disc list-inside space-y-1 text-sm">`;
             links.forEach((link) => {
-              if (link.status === 'Error') {
-                phase1Html += `<li>${link.url} - <span class="font-medium text-red-500">${link.reason}</span></li>`;
+              if (link.type === 'citation') {
+                phase1Html += `<li>${link.text}</li>`;
               } else {
                 phase1Html += `<li><a href="${link.url}" target="_blank" class="text-blue-600 hover:underline">${link.url}</a> - <span class="font-medium">${link.domain_type}</span></li>`;
               }
@@ -388,9 +388,10 @@
         }
 
         _check_source_links() {
-          return this.source_urls.map((url) => {
+          return this.source_urls.map((source) => {
             try {
-              const parsed_url = new URL(url);
+              // Try to parse it as a URL
+              const parsed_url = new URL(source);
               const domain = parsed_url.hostname;
               const tld = domain.split('.').pop();
               let domain_type = 'General/Blog';
@@ -405,12 +406,14 @@
                 domain_type = 'Reputable News Source';
               }
               return {
-                url,
+                type: 'url',
+                url: source,
                 status: 'Domain Analyzed (Live Check N/A)',
                 domain_type,
               };
             } catch (e) {
-              return { url, status: 'Error', reason: 'Invalid URL format' };
+              // If it fails, treat it as a citation.
+              return { type: 'citation', text: source };
             }
           });
         }
