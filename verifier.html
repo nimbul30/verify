@@ -98,12 +98,20 @@
                 placeholder="Paste your API key here"
               />
             </div>
-            <button
-              id="verify-button"
-              class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out"
-            >
-              Verify Article
-            </button>
+            <div class="flex space-x-2">
+              <button
+                id="verify-button"
+                class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out"
+              >
+                Verify Article
+              </button>
+              <button
+                id="markup-button"
+                class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-150 ease-in-out"
+              >
+                Markup Only
+              </button>
+            </div>
 
             <div id="status-container" class="mt-4 text-center">
               <div
@@ -131,6 +139,7 @@
 
     <script>
       const verifyButton = document.getElementById('verify-button');
+      const markupButton = document.getElementById('markup-button');
       const articleInput = document.getElementById('article-input');
       const sourcesInput = document.getElementById('sources-input');
       const apiKeyInput = document.getElementById('api-key-input');
@@ -161,6 +170,8 @@
         loader.classList.remove('hidden');
         verifyButton.disabled = true;
         verifyButton.classList.add('opacity-50', 'cursor-not-allowed');
+        markupButton.disabled = true;
+        markupButton.classList.add('opacity-50', 'cursor-not-allowed');
 
         const assistant = new AI_Verification_Assistant(
           articleText,
@@ -175,9 +186,52 @@
         loader.classList.add('hidden');
         statusText.textContent = 'Verification Complete!';
 
-        // Re-enable button
+        // Re-enable buttons
         verifyButton.disabled = false;
         verifyButton.classList.remove('opacity-50', 'cursor-not-allowed');
+        markupButton.disabled = false;
+        markupButton.classList.remove('opacity-50', 'cursor-not-allowed');
+      });
+
+      markupButton.addEventListener('click', async () => {
+        const apiKey = apiKeyInput.value.trim();
+        const articleText = articleInput.value.trim();
+
+        if (!apiKey) {
+          alert('Please provide your Gemini API key to continue.');
+          return;
+        }
+        if (!articleText) {
+          alert('Please provide an article to markup.');
+          return;
+        }
+
+        // Reset UI
+        reportOutput.classList.add('hidden');
+        loader.classList.remove('hidden');
+        verifyButton.disabled = true;
+        verifyButton.classList.add('opacity-50', 'cursor-not-allowed');
+        markupButton.disabled = true;
+        markupButton.classList.add('opacity-50', 'cursor-not-allowed');
+
+        const assistant = new AI_Verification_Assistant(
+          articleText,
+          [], // No sources needed for markup only
+          apiKey
+        );
+        const report = await assistant.run_markup_only_verification();
+
+        // Render and Display report
+        renderHtmlReport(report);
+        reportOutput.classList.remove('hidden');
+        loader.classList.add('hidden');
+        statusText.textContent = 'Markup Complete!';
+
+        // Re-enable buttons
+        verifyButton.disabled = false;
+        verifyButton.classList.remove('opacity-50', 'cursor-not-allowed');
+        markupButton.disabled = false;
+        markupButton.classList.remove('opacity-50', 'cursor-not-allowed');
       });
 
       function renderHtmlReport(report) {
@@ -321,6 +375,12 @@
           statusText.textContent = 'Generating Markup...';
           this.verification_report['Markup System'] = await this.generate_markup();
 
+          return this.verification_report;
+        }
+
+        async run_markup_only_verification() {
+          statusText.textContent = 'Generating Markup...';
+          this.verification_report['Markup System'] = await this.generate_markup();
           return this.verification_report;
         }
 
