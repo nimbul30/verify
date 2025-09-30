@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="data:," />
     <title>AI-Assisted Verification Tool</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link
@@ -296,7 +297,7 @@
             50
           )}...) ---`
         );
-        const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+        const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
         const headers = { 'Content-Type': 'application/json' };
         const payload = {
           systemInstruction: { parts: [{ text: system_prompt }] },
