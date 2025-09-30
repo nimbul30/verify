@@ -121,6 +121,7 @@ class AI_Verification_Assistant:
         """Runs all automated phases and prints a final report."""
         print("--- Starting Automated Verification Process ---")
         self.phase1_triage()
+        self.verification_report['Markup System'] = self.generate_markup()
         print("\n--- Automated Verification Process Complete ---")
         self.print_report()
 
@@ -128,17 +129,14 @@ class AI_Verification_Assistant:
     def phase1_triage(self):
         print("\n--- Running Phase 1: Triage ---")
         source_credibility_analysis = self._verify_sources()
-        # MODIFIED: Called the new deep verification function
-        claim_verification = self._deep_claim_verification()
         self.verification_report['Phase 1: Triage'] = {
             'Source Credibility Analysis': source_credibility_analysis,
-            'Deep Claim Verification': claim_verification # MODIFIED: Updated the report key
         }
 
     def _verify_sources(self):
         """
         Analyzes each source for credibility. For URLs, it fetches content.
-        For textual references, it identifies the publication.
+        For textual references, it analyzes them directly.
         """
         credibility_results = []
         for source in self.source_urls:
@@ -153,12 +151,8 @@ class AI_Verification_Assistant:
                 credibility_assessment = self._get_source_credibility(analysis_input)
                 result_item['credibility'] = credibility_assessment
             else:
-                # For textual sources, identify the publication first
-                publication = self._get_publication_info(source)
-                result_item['publication'] = publication
-                # Enrich input for credibility check for better analysis
-                enriched_input = f"{source} (Publication: {publication})"
-                credibility_assessment = self._get_source_credibility(enriched_input)
+                # For textual sources, analyze directly
+                credibility_assessment = self._get_source_credibility(source)
                 result_item['credibility'] = credibility_assessment
 
             credibility_results.append(result_item)
@@ -188,59 +182,49 @@ class AI_Verification_Assistant:
         }
         return call_gemini_api(system_prompt, user_content, schema)
 
-    def _get_publication_info(self, source_text):
-        """Uses Gemini to identify the publisher of a textual source."""
-        print(f"Identifying publication for: {source_text}...")
-        system_prompt = (
-            "You are a research assistant. Your task is to identify the publisher or primary institution "
-            "associated with the given source. Provide only the name of the publisher or institution."
-        )
-        user_content = f"Source: \"{source_text}\""
+    def generate_markup(self):
+        """Uses Gemini to apply markdown formatting to the article text."""
+        print("\n--- Generating Markup ---")
+        system_prompt = """
+            You are a markup expert. Your task is to apply markdown formatting to the provided article text.
+            Follow these rules precisely:
+            - Use double line breaks for new paragraphs.
+            - Use ** for bold text.
+            - Use _ for italicized text.
+            - Use ~~ for strikethrough text.
+            - Use #, ##, ###, #### for headers of different sizes.
+            - Use - for generic list items.
+            - Use 1., 2., 3. for numbered list items.
+            - Use > for quotes.
+            The user needs the raw markdown text with all characters like #, *, etc., visible. Do not render the markdown.
+        """
+        user_content = f"ARTICLE TO MARKUP:\n{self.article_text}"
         schema = {
             "type": "OBJECT", "properties": {
-                "publication": {
+                "marked_up_text": {
                     "type": "STRING",
-                    "description": "The name of the publisher or institution."
+                    "description": "The article text with markdown formatting applied."
                 }
-            }, "required": ["publication"]
-        }
-        publication_info = call_gemini_api(system_prompt, user_content, schema)
-        return publication_info.get("publication", "Publication Not Found")
-
-    # MODIFIED: This function now performs deep verification.
-    def _deep_claim_verification(self):
-        """Uses Gemini to perform deep verification of article claims against source content."""
-        system_prompt = (
-            "You are a meticulous fact-checker. From the article, extract each key claim. "
-            "For each claim, search the provided source texts for direct evidence. "
-            "You must classify the evidence for each claim as either 'Supported', 'Contradicted', or 'No Evidence Found'. "
-            "If evidence is found, you must provide the exact quote from the source text as 'evidence_quote'."
-        )
-        user_content = f"ARTICLE TO VERIFY:\n{self.article_text}\n\nSOURCE TEXTS:\n{''.join(self.sources_content.values())}"
-        schema = {
-            "type": "OBJECT", "properties": {
-                "verified_claims": { "type": "ARRAY", "items": {
-                    "type": "OBJECT", "properties": {
-                        "claim": {"type": "STRING", "description": "The specific claim extracted from the article."},
-                        "verification_status": {
-                            "type": "STRING",
-                            "enum": ["Supported", "Contradicted", "No Evidence Found"],
-                            "description": "The verification status of the claim."
-                        },
-                        "evidence_quote": {"type": "STRING", "description": "The direct quote from the source text that supports or contradicts the claim. Should be empty if no evidence is found."}
-                    }, "required": ["claim", "verification_status", "evidence_quote"]
-                }}
-            }
+            }, "required": ["marked_up_text"]
         }
         return call_gemini_api(system_prompt, user_content, schema)
-
 
     def print_report(self):
         """Prints the final, structured report for the human verifier."""
         print("\n" + "="*50)
         print("          AI-ASSISTED VERIFICATION REPORT")
         print("="*50 + "\n")
-        print(json.dumps(self.verification_report, indent=2))
+        # Print the analysis part of the report
+        if 'Phase 1: Triage' in self.verification_report:
+            print(json.dumps({'Phase 1: Triage': self.verification_report['Phase 1: Triage']}, indent=2))
+
+        # Print the markup part of the report
+        if 'Markup System' in self.verification_report and self.verification_report['Markup System'].get('marked_up_text'):
+            print("\n" + "="*50)
+            print("              MARKUP SYSTEM OUTPUT")
+            print("="*50 + "\n")
+            print(self.verification_report['Markup System']['marked_up_text'])
+
         print("\n" + "="*50)
         print("ACTION: Human Verifier should now review this report and the article.")
         print("="*50)

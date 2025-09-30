@@ -227,76 +227,14 @@
           reportContent.innerHTML += phase1Html;
         }
 
-        // Phase 2
-        const phase2 = report['Phase 2: Factual Deep Dive'];
-        if (phase2) {
-          let phase2Html = `<div class="report-section">
-                    <h3 class="text-xl font-semibold mb-3 text-gray-800">Phase 2: Factual Deep Dive</h3>`;
-          const entities =
-            phase2['Extracted Entities for Verification']?.entities;
-          if (entities) {
-            phase2Html += `<h4 class="text-lg font-semibold mb-2 text-gray-700">Extracted Entities for Verification</h4>`;
-            for (const [key, value] of Object.entries(entities)) {
-              if (value && value.length > 0) {
-                const title = key
-                  .replace(/_/g, ' ')
-                  .replace(/\b\w/g, (l) => l.toUpperCase());
-                phase2Html += `<p class="mt-2 mb-1 text-sm font-semibold">${title}:</p><div class="flex flex-wrap gap-2 text-xs">`;
-                value.forEach((item) => {
-                  phase2Html += `<span class="bg-gray-200 text-gray-800 px-2 py-1 rounded-full">${item}</span>`;
-                });
-                phase2Html += `</div>`;
-              }
-            }
-          }
-          phase2Html += `</div>`;
-          reportContent.innerHTML += phase2Html;
-        }
-
-        // Phase 3
-        const phase3 = report['Phase 3: Quality & Ethics Consultant'];
-        if (phase3) {
-          let phase3Html = `<div class="report-section">
-                    <h3 class="text-xl font-semibold mb-3 text-gray-800">Phase 3: Quality & Ethics Consultant</h3>`;
-
-          // Bias Analysis
-          const bias = phase3['Bias and Sentiment Analysis']?.bias_analysis;
-          if (bias) {
-            phase3Html += `<h4 class="text-lg font-semibold mb-2 text-gray-700">Bias & Sentiment Analysis</h4>`;
-            phase3Html += `<p class="text-sm"><strong>Overall Sentiment:</strong> ${
-              bias.overall_sentiment || 'N/A'
-            }</p>`;
-            phase3Html += `<p class="text-sm"><strong>Framing:</strong> ${
-              bias.framing || 'N/A'
-            }</p>`;
-            if (bias.flagged_phrases && bias.flagged_phrases.length > 0) {
-              phase3Html += `<div class="mt-2 text-sm">`;
-              bias.flagged_phrases.forEach((item) => {
-                phase3Html += `<div class="mt-1 p-2 bg-yellow-100 border-l-4 border-yellow-500 rounded-r-lg"><p><strong>Flagged:</strong> "${item.phrase}"</p><p><strong>Suggestion:</strong> "${item.suggestion}"</p></div>`;
-              });
-              phase3Html += `</div>`;
-            }
-          }
-
-          // Style Editing
-          const style =
-            phase3['Readability and Style Editing']?.style_suggestions;
-          if (style) {
-            phase3Html += `<h4 class="text-lg font-semibold mt-4 mb-2 text-gray-700">Readability & Style Editing</h4>`;
-            if (
-              style.headline_suggestions &&
-              style.headline_suggestions.length > 0
-            ) {
-              phase3Html += `<p class="text-sm font-semibold mb-1">Headline Suggestions:</p><ul class="list-disc list-inside text-sm space-y-1">`;
-              style.headline_suggestions.forEach((h) => {
-                phase3Html += `<li>${h}</li>`;
-              });
-              phase3Html += `</ul>`;
-            }
-          }
-
-          phase3Html += `</div>`;
-          reportContent.innerHTML += phase3Html;
+        // Markup System
+        const markup = report['Markup System'];
+        if (markup && markup.marked_up_text) {
+          let markupHtml = `<div class="report-section">
+                    <h3 class="text-xl font-semibold mb-3 text-gray-800">Markup System</h3>
+                    <pre class="bg-gray-200 p-3 rounded text-sm whitespace-pre-wrap font-mono">${markup.marked_up_text}</pre>
+                  </div>`;
+          reportContent.innerHTML += markupHtml;
         }
       }
 
@@ -380,11 +318,8 @@
           statusText.textContent = 'Running Phase 1: Triage...';
           await this.phase1_triage();
 
-          statusText.textContent = 'Running Phase 2: Factual Deep Dive...';
-          await this.phase2_deep_dive();
-
-          statusText.textContent = 'Running Phase 3: Quality & Ethics...';
-          await this.phase3_quality_consult();
+          statusText.textContent = 'Generating Markup...';
+          this.verification_report['Markup System'] = await this.generate_markup();
 
           return this.verification_report;
         }
@@ -503,131 +438,38 @@
           );
         }
 
-        async phase2_deep_dive() {
-          this.verification_report['Phase 2: Factual Deep Dive'] = {
-            'Extracted Entities for Verification':
-              await this._extract_entities(),
-          };
-        }
-
-        async _extract_entities() {
-          const system_prompt =
-            "You are a data extraction tool. From the user's article, extract all key entities into structured lists for verification.";
+        async generate_markup() {
+          const system_prompt = `
+            You are a markup expert. Your task is to apply markdown formatting to the provided article text.
+            Follow these rules precisely:
+            - Use double line breaks for new paragraphs.
+            - Use ** for bold text.
+            - Use _ for italicized text.
+            - Use ~~ for strikethrough text.
+            - Use #, ##, ###, #### for headers of different sizes.
+            - Use - for generic list items.
+            - Use 1., 2., 3. for numbered list items.
+            - Use > for quotes.
+            The user needs the raw markdown text with all characters like #, *, etc., visible. Do not render the markdown.
+          `;
+          const user_content = `ARTICLE TO MARKUP:\n${this.article_text}`;
           const schema = {
             type: 'OBJECT',
             properties: {
-              entities: {
-                type: 'OBJECT',
-                properties: {
-                  personal_names_titles: {
-                    type: 'ARRAY',
-                    items: { type: 'STRING' },
-                  },
-                  organization_names: {
-                    type: 'ARRAY',
-                    items: { type: 'STRING' },
-                  },
-                  numbers_statistics: {
-                    type: 'ARRAY',
-                    items: { type: 'STRING' },
-                  },
-                  dates_times: { type: 'ARRAY', items: { type: 'STRING' } },
-                  locations: { type: 'ARRAY', items: { type: 'STRING' } },
-                },
-              },
+              marked_up_text: {
+                type: 'STRING',
+                description: 'The article text with markdown formatting applied.'
+              }
             },
+            required: ['marked_up_text']
           };
-          return call_gemini_api(
+          const result = await call_gemini_api(
             this.apiKey,
             system_prompt,
-            this.article_text,
+            user_content,
             schema
           );
-        }
-
-        async phase3_quality_consult() {
-          this.verification_report['Phase 3: Quality & Ethics Consultant'] = {
-            'Bias and Sentiment Analysis': await this._analyze_bias(),
-            'Readability and Style Editing': await this._edit_style(),
-          };
-        }
-
-        async _analyze_bias() {
-          const system_prompt =
-            'You are an ethics and fairness editor. Analyze the article for bias, loaded language, or unfair framing. Suggest neutral alternatives for any flagged phrases.';
-          const schema = {
-            type: 'OBJECT',
-            properties: {
-              bias_analysis: {
-                type: 'OBJECT',
-                properties: {
-                  flagged_phrases: {
-                    type: 'ARRAY',
-                    items: {
-                      type: 'OBJECT',
-                      properties: {
-                        phrase: { type: 'STRING' },
-                        suggestion: { type: 'STRING' },
-                      },
-                    },
-                  },
-                  overall_sentiment: { type: 'STRING' },
-                  framing: { type: 'STRING' },
-                },
-              },
-            },
-          };
-          return call_gemini_api(
-            this.apiKey,
-            system_prompt,
-            this.article_text,
-            schema
-          );
-        }
-
-        async _edit_style() {
-          const system_prompt =
-            'You are a senior copy editor. Review the article for style, clarity, and impact. Correct passive voice, simplify complex sentences, and suggest three compelling, SEO-friendly headlines.';
-          const schema = {
-            type: 'OBJECT',
-            properties: {
-              style_suggestions: {
-                type: 'OBJECT',
-                properties: {
-                  passive_voice_corrections: {
-                    type: 'ARRAY',
-                    items: {
-                      type: 'OBJECT',
-                      properties: {
-                        original: { type: 'STRING' },
-                        suggestion: { type: 'STRING' },
-                      },
-                    },
-                  },
-                  simplifications: {
-                    type: 'ARRAY',
-                    items: {
-                      type: 'OBJECT',
-                      properties: {
-                        original: { type: 'STRING' },
-                        suggestion: { type: 'STRING' },
-                      },
-                    },
-                  },
-                  headline_suggestions: {
-                    type: 'ARRAY',
-                    items: { type: 'STRING' },
-                  },
-                },
-              },
-            },
-          };
-          return call_gemini_api(
-            this.apiKey,
-            system_prompt,
-            this.article_text,
-            schema
-          );
+          return result;
         }
       }
     </script>
