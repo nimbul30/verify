@@ -197,7 +197,8 @@
               if (link.type === 'citation') {
                 phase1Html += `<li>${link.text}</li>`;
               } else {
-                phase1Html += `<li><a href="${link.url}" target="_blank" class="text-blue-600 hover:underline">${link.url}</a> - <span class="font-medium">${link.domain_type}</span></li>`;
+                const linked_text = link.text.replace(link.url, `<a href="${link.url}" target="_blank" class="text-blue-600 hover:underline">${link.url}</a>`);
+                phase1Html += `<li>${linked_text} - <span class="font-medium">${link.domain_type}</span></li>`;
               }
             });
             phase1Html += `</ul>`;
@@ -388,31 +389,37 @@
         }
 
         _check_source_links() {
+          const url_regex = /https?:\/\/[^\s/$.?#].[^\s]*/i;
           return this.source_urls.map((source) => {
-            try {
-              // Try to parse it as a URL
-              const parsed_url = new URL(source);
-              const domain = parsed_url.hostname;
-              const tld = domain.split('.').pop();
-              let domain_type = 'General/Blog';
+            const url_match = source.match(url_regex);
+            if (url_match) {
+              try {
+                const parsed_url = new URL(url_match[0]);
+                const domain = parsed_url.hostname;
+                const tld = domain.split('.').pop();
+                let domain_type = 'General/Blog';
 
-              if (['gov', 'edu'].includes(tld)) {
-                domain_type = 'High-Reputation (Government/Education)';
-              } else if (
-                ['reuters.com', 'apnews.com', 'bbc.com', 'wsj.com'].some((d) =>
-                  domain.includes(d)
-                )
-              ) {
-                domain_type = 'Reputable News Source';
+                if (['gov', 'edu'].includes(tld)) {
+                  domain_type = 'High-Reputation (Government/Education)';
+                } else if (
+                  ['reuters.com', 'apnews.com', 'bbc.com', 'wsj.com'].some((d) =>
+                    domain.includes(d)
+                  )
+                ) {
+                  domain_type = 'Reputable News Source';
+                }
+                return {
+                  type: 'url',
+                  text: source,
+                  url: url_match[0],
+                  status: 'Domain Analyzed (Live Check N/A)',
+                  domain_type,
+                };
+              } catch (e) {
+                // Should not happen if regex is correct, but as a fallback
+                return { type: 'citation', text: source };
               }
-              return {
-                type: 'url',
-                url: source,
-                status: 'Domain Analyzed (Live Check N/A)',
-                domain_type,
-              };
-            } catch (e) {
-              // If it fails, treat it as a citation.
+            } else {
               return { type: 'citation', text: source };
             }
           });
