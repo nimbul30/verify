@@ -189,13 +189,23 @@
           let phase1Html = `<div class="report-section">
                     <h3 class="text-xl font-semibold mb-3 text-gray-800">Phase 1: Triage</h3>`;
 
+          // Create a map for citation assessments for easy lookup
+          const citation_analysis = phase1['Citation Analysis'];
+          const assessment_map = new Map();
+          if (citation_analysis && citation_analysis.citation_assessments) {
+            citation_analysis.citation_assessments.forEach(item => {
+              assessment_map.set(item.citation, item.assessment);
+            });
+          }
+
           // Source Links
           const links = phase1['Source Link Check'];
           if (links && links.length > 0) {
             phase1Html += `<h4 class="text-lg font-semibold mb-2 text-gray-700">Source Link Analysis</h4><ul class="list-disc list-inside space-y-1 text-sm">`;
             links.forEach((link) => {
               if (link.type === 'citation') {
-                phase1Html += `<li>${link.text}</li>`;
+                const assessment = assessment_map.get(link.text);
+                phase1Html += `<li>${link.text} - <span class="font-medium text-gray-600">${assessment || ''}</span></li>`;
               } else {
                 const linked_text = link.text.replace(link.url, `<a href="${link.url}" target="_blank" class="text-blue-600 hover:underline">${link.url}</a>`);
                 phase1Html += `<li>${linked_text} - <span class="font-medium">${link.domain_type}</span></li>`;
@@ -381,9 +391,19 @@
 
         async phase1_triage() {
           const source_check_results = this._check_source_links();
+          const citations = source_check_results
+            .filter((source) => source.type === 'citation')
+            .map((source) => source.text);
+
+          let citation_analysis = null;
+          if (citations.length > 0) {
+            citation_analysis = await this._analyze_citations(citations);
+          }
+
           const claim_mapping = await this._map_claims_to_sources();
           this.verification_report['Phase 1: Triage'] = {
             'Source Link Check': source_check_results,
+            'Citation Analysis': citation_analysis,
             'Claim-to-Source Mapping': claim_mapping,
           };
         }
@@ -423,6 +443,34 @@
               return { type: 'citation', text: source };
             }
           });
+        }
+
+        async _analyze_citations(citations) {
+          const system_prompt =
+            'You are a source analysis expert. For each of the following citations, provide a brief assessment of its likely reputation and relevance. For example, is it a reputable academic journal, a mainstream news source, a partisan blog, etc.?';
+          const user_content = `CITATIONS:\n${citations.join('\n')}`;
+          const schema = {
+            type: 'OBJECT',
+            properties: {
+              citation_assessments: {
+                type: 'ARRAY',
+                items: {
+                  type: 'OBJECT',
+                  properties: {
+                    citation: { type: 'STRING' },
+                    assessment: { type: 'STRING' },
+                  },
+                  required: ['citation', 'assessment'],
+                },
+              },
+            },
+          };
+          return call_gemini_api(
+            this.apiKey,
+            system_prompt,
+            user_content,
+            schema
+          );
         }
 
         async _map_claims_to_sources() {
