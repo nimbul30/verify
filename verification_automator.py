@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 # --- Gemini API Configuration ---
 # The Canvas environment will automatically provide the API key. DO NOT populate this variable.
 API_KEY = "AIzaSyDiXGKfPlVABmVxxmjIXv4Zh_SWU8LZiXA"  # Replace with your actual Gemini API Key
-GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={API_KEY}"
+GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={API_KEY}"
 
 def call_gemini_api(system_prompt, user_content, schema=None, max_retries=3):
     """
