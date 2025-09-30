@@ -34,6 +34,14 @@ def call_gemini_api(system_prompt, user_content, schema=None, max_retries=3):
                     "credibility_rating": "Medium",
                     "justification": "Mock response: The report is cited, but its contents and publisher need to be verified."
                 }
+        # Mock response for publication identification
+        elif "research assistant" in system_prompt:
+            if "Dr. Evelyn Reed" in user_content:
+                return {"publication": "MIT (Massachusetts Institute of Technology)"}
+            elif "The 2023 Annual Report" in user_content:
+                return {"publication": "Semiconductor Industry Association"}
+            else:
+                return {"publication": "Unknown Publisher"}
         # Mock response for claim verification
         elif "fact-checker" in system_prompt:
             return {
@@ -129,30 +137,32 @@ class AI_Verification_Assistant:
 
     def _verify_sources(self):
         """
-        Analyzes each source (URL or text) for credibility using the Gemini API.
-        For URLs, it fetches content first (mocked). For text, it analyzes directly.
+        Analyzes each source for credibility. For URLs, it fetches content.
+        For textual references, it identifies the publication.
         """
         credibility_results = []
         for source in self.source_urls:
             print(f"Analyzing source: {source}...")
-            # Simple check to see if the source is a URL or a textual reference
+            result_item = {'source': source}
+
             if urlparse(source).scheme in ['http', 'https']:
-                 # In a real-world scenario, you would use a library like BeautifulSoup
-                # to scrape the actual content. For this example, we'll continue to mock it.
                 print(f"Fetching content for {source}...")
                 source_content = f"Mock source content for {source}. Innovate Inc. confirms the 'Quantum' phone with a 'Photonic' chip, increasing speed by 50%. CEO Jane Doe is quoted. 1,000,000 units are planned for the October 26th launch."
                 self.sources_content[source] = source_content
                 analysis_input = source_content
+                credibility_assessment = self._get_source_credibility(analysis_input)
+                result_item['credibility'] = credibility_assessment
             else:
-                # If it's not a URL, it's a textual reference (e.g., a person, a report)
-                analysis_input = source
+                # For textual sources, identify the publication first
+                publication = self._get_publication_info(source)
+                result_item['publication'] = publication
+                # Enrich input for credibility check for better analysis
+                enriched_input = f"{source} (Publication: {publication})"
+                credibility_assessment = self._get_source_credibility(enriched_input)
+                result_item['credibility'] = credibility_assessment
 
-            # Call Gemini to assess the credibility of the source
-            credibility_assessment = self._get_source_credibility(analysis_input)
-            credibility_results.append({
-                'source': source,
-                'credibility': credibility_assessment
-            })
+            credibility_results.append(result_item)
+
         return credibility_results
 
     def _get_source_credibility(self, source_text):
@@ -177,6 +187,25 @@ class AI_Verification_Assistant:
             }, "required": ["credibility_rating", "justification"]
         }
         return call_gemini_api(system_prompt, user_content, schema)
+
+    def _get_publication_info(self, source_text):
+        """Uses Gemini to identify the publisher of a textual source."""
+        print(f"Identifying publication for: {source_text}...")
+        system_prompt = (
+            "You are a research assistant. Your task is to identify the publisher or primary institution "
+            "associated with the given source. Provide only the name of the publisher or institution."
+        )
+        user_content = f"Source: \"{source_text}\""
+        schema = {
+            "type": "OBJECT", "properties": {
+                "publication": {
+                    "type": "STRING",
+                    "description": "The name of the publisher or institution."
+                }
+            }, "required": ["publication"]
+        }
+        publication_info = call_gemini_api(system_prompt, user_content, schema)
+        return publication_info.get("publication", "Publication Not Found")
 
     # MODIFIED: This function now performs deep verification.
     def _deep_claim_verification(self):
