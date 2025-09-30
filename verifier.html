@@ -194,7 +194,11 @@
           if (links && links.length > 0) {
             phase1Html += `<h4 class="text-lg font-semibold mb-2 text-gray-700">Source Link Analysis</h4><ul class="list-disc list-inside space-y-1 text-sm">`;
             links.forEach((link) => {
-              phase1Html += `<li><a href="${link.url}" target="_blank" class="text-blue-600 hover:underline">${link.url}</a> - <span class="font-medium">${link.domain_type}</span></li>`;
+              if (link.status === 'Error') {
+                phase1Html += `<li>${link.url} - <span class="font-medium text-red-500">${link.reason}</span></li>`;
+              } else {
+                phase1Html += `<li><a href="${link.url}" target="_blank" class="text-blue-600 hover:underline">${link.url}</a> - <span class="font-medium">${link.domain_type}</span></li>`;
+              }
             });
             phase1Html += `</ul>`;
           }
