@@ -298,7 +298,7 @@
             50
           )}...) ---`
         );
-        const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+        const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
         const headers = { 'Content-Type': 'application/json' };
         const payload = {
           systemInstruction: { parts: [{ text: system_prompt }] },
