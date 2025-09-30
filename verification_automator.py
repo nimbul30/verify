@@ -12,7 +12,53 @@ def call_gemini_api(system_prompt, user_content, schema=None, max_retries=3):
     """
     Calls the Gemini API with a given prompt, content, and optional JSON schema.
     Includes exponential backoff for retries.
+    If the default API key is used, this function returns a mock response.
     """
+    # If the default API key is present, mock the API call
+    if API_KEY == "AIzaSyDiXGKfPlVABmVxxmjIXv4Zh_SWU8LZiXA":
+        print("--- MOCKING Gemini API Call (No real API Key found) ---")
+        # Mock response for credibility analysis
+        if "credibility analyst" in system_prompt:
+            if "https" in user_content:
+                return {
+                    "credibility_rating": "High",
+                    "justification": "Mock response: This source appears to be a reputable news organization."
+                }
+            elif "Dr. Evelyn Reed" in user_content:
+                return {
+                    "credibility_rating": "Medium",
+                    "justification": "Mock response: The individual is cited as an expert, but further verification of their credentials is required."
+                }
+            else: # Catches "The 2023 Annual Report..."
+                return {
+                    "credibility_rating": "Medium",
+                    "justification": "Mock response: The report is cited, but its contents and publisher need to be verified."
+                }
+        # Mock response for claim verification
+        elif "fact-checker" in system_prompt:
+            return {
+                "verified_claims": [
+                    {
+                        "claim": "Innovate Inc. launched its revolutionary 'Quantum' smartphone today.",
+                        "verification_status": "Supported",
+                        "evidence_quote": "Mock source content... Innovate Inc. confirms the 'Quantum' phone..."
+                    },
+                    {
+                        "claim": "The device features a new 'Photonic' chip, promising a 50% increase in processing speed.",
+                        "verification_status": "Supported",
+                        "evidence_quote": "Mock source content... with a 'Photonic' chip, increasing speed by 50%."
+                    },
+                    {
+                        "claim": "A new claim not in the sources is that the phone is made of titanium.",
+                        "verification_status": "No Evidence Found",
+                        "evidence_quote": ""
+                    }
+                ]
+            }
+        # Default empty mock for any other unexpected calls
+        else:
+            return json.loads("{}")
+
     print(f"\n--- Calling Gemini API... (Prompt: {system_prompt[:50]}...) ---")
     headers = {'Content-Type': 'application/json'}
     payload = {
@@ -67,47 +113,70 @@ class AI_Verification_Assistant:
         """Runs all automated phases and prints a final report."""
         print("--- Starting Automated Verification Process ---")
         self.phase1_triage()
-        self.phase2_deep_dive()
-        self.phase3_quality_consult()
         print("\n--- Automated Verification Process Complete ---")
         self.print_report()
 
     # --- PHASE 1: TRIAGE ---
     def phase1_triage(self):
         print("\n--- Running Phase 1: Triage ---")
-        source_check_results = self._check_source_links()
+        source_credibility_analysis = self._verify_sources()
         # MODIFIED: Called the new deep verification function
         claim_verification = self._deep_claim_verification()
         self.verification_report['Phase 1: Triage'] = {
-            'Source Link Check': source_check_results,
+            'Source Credibility Analysis': source_credibility_analysis,
             'Deep Claim Verification': claim_verification # MODIFIED: Updated the report key
         }
 
-    def _check_source_links(self):
-        """Performs Link Validation and Domain Reputation Analysis."""
-        results = []
-        for url in self.source_urls:
-            try:
-                # In a real-world scenario, you would use a library like BeautifulSoup
+    def _verify_sources(self):
+        """
+        Analyzes each source (URL or text) for credibility using the Gemini API.
+        For URLs, it fetches content first (mocked). For text, it analyzes directly.
+        """
+        credibility_results = []
+        for source in self.source_urls:
+            print(f"Analyzing source: {source}...")
+            # Simple check to see if the source is a URL or a textual reference
+            if urlparse(source).scheme in ['http', 'https']:
+                 # In a real-world scenario, you would use a library like BeautifulSoup
                 # to scrape the actual content. For this example, we'll continue to mock it.
-                print(f"Fetching content for {url}...")
-                self.sources_content[url] = f"Mock source content for {url}. Innovate Inc. confirms the 'Quantum' phone with a 'Photonic' chip, increasing speed by 50%. CEO Jane Doe is quoted. 1,000,000 units are planned for the October 26th launch."
-                parsed_url = urlparse(url)
-                domain = parsed_url.netloc
-                tld = domain.split('.')[-1]
+                print(f"Fetching content for {source}...")
+                source_content = f"Mock source content for {source}. Innovate Inc. confirms the 'Quantum' phone with a 'Photonic' chip, increasing speed by 50%. CEO Jane Doe is quoted. 1,000,000 units are planned for the October 26th launch."
+                self.sources_content[source] = source_content
+                analysis_input = source_content
+            else:
+                # If it's not a URL, it's a textual reference (e.g., a person, a report)
+                analysis_input = source
 
-                if tld in ['gov', 'edu']:
-                    domain_type = "High-Reputation (Government/Education)"
-                elif any(news in domain for news in ['reuters', 'ap', 'bbc', 'wsj']):
-                    domain_type = "Reputable News Source"
-                else:
-                    domain_type = "General/Blog"
+            # Call Gemini to assess the credibility of the source
+            credibility_assessment = self._get_source_credibility(analysis_input)
+            credibility_results.append({
+                'source': source,
+                'credibility': credibility_assessment
+            })
+        return credibility_results
 
-                results.append({'url': url, 'status': '200 OK (Mocked)', 'domain_type': domain_type})
-
-            except requests.RequestException as e:
-                results.append({'url': url, 'status': 'Error', 'reason': str(e)})
-        return results
+    def _get_source_credibility(self, source_text):
+        """Uses Gemini to assess the credibility of a given source text."""
+        system_prompt = (
+            "You are a source credibility analyst. Analyze the provided text to determine its "
+            "credibility. Consider the source's reputation, potential biases, and the "
+            "verifiability of the information. Provide a credibility rating and a brief justification."
+        )
+        user_content = f"Source to analyze:\n{source_text}"
+        schema = {
+            "type": "OBJECT", "properties": {
+                "credibility_rating": {
+                    "type": "STRING",
+                    "enum": ["High", "Medium", "Low", "Uncertain"],
+                    "description": "The assessed credibility of the source."
+                },
+                "justification": {
+                    "type": "STRING",
+                    "description": "A brief explanation for the credibility rating."
+                }
+            }, "required": ["credibility_rating", "justification"]
+        }
+        return call_gemini_api(system_prompt, user_content, schema)
 
     # MODIFIED: This function now performs deep verification.
     def _deep_claim_verification(self):
@@ -136,82 +205,6 @@ class AI_Verification_Assistant:
         }
         return call_gemini_api(system_prompt, user_content, schema)
 
-    # --- PHASE 2: DEEP DIVE ---
-    def phase2_deep_dive(self):
-        print("\n--- Running Phase 2: Factual Deep Dive ---")
-        self.verification_report['Phase 2: Factual Deep Dive'] = {
-            'Extracted Entities for Verification': self._extract_entities()
-        }
-
-    def _extract_entities(self):
-        """Uses Gemini to extract all verifiable data points."""
-        system_prompt = "You are a data extraction tool. From the user's article, extract all key entities into structured lists for verification."
-        user_content = self.article_text
-        schema = {
-            "type": "OBJECT", "properties": {
-                "entities": { "type": "OBJECT", "properties": {
-                        "personal_names_titles": {"type": "ARRAY", "items": {"type": "STRING"}},
-                        "organization_names": {"type": "ARRAY", "items": {"type": "STRING"}},
-                        "numbers_statistics": {"type": "ARRAY", "items": {"type": "STRING"}},
-                        "dates_times": {"type": "ARRAY", "items": {"type": "STRING"}},
-                        "locations": {"type": "ARRAY", "items": {"type": "STRING"}}
-                }}
-            }
-        }
-        return call_gemini_api(system_prompt, user_content, schema)
-
-    # --- PHASE 3: QUALITY & ETHICS ---
-    def phase3_quality_consult(self):
-        print("\n--- Running Phase 3: Quality & Ethics ---")
-        self.verification_report['Phase 3: Quality & Ethics Consultant'] = {
-            'Bias and Sentiment Analysis': self._analyze_bias(),
-            'Readability and Style Editing': self._edit_style()
-        }
-
-    def _analyze_bias(self):
-        """Uses Gemini to analyze for bias and suggest neutral alternatives."""
-        system_prompt = "You are an ethics and fairness editor. Analyze the article for bias, loaded language, or unfair framing. Suggest neutral alternatives for any flagged phrases."
-        user_content = self.article_text
-        schema = {
-            "type": "OBJECT", "properties": {
-                "bias_analysis": { "type": "OBJECT", "properties": {
-                    "flagged_phrases": {"type": "ARRAY", "items": {
-                        "type": "OBJECT", "properties": {
-                            "phrase": {"type": "STRING"},
-                            "suggestion": {"type": "STRING"}
-                        }
-                    }},
-                    "overall_sentiment": {"type": "STRING"},
-                    "framing": {"type": "STRING"}
-                }}
-            }
-        }
-        return call_gemini_api(system_prompt, user_content, schema)
-
-    def _edit_style(self):
-        """Uses Gemini to suggest style and readability improvements."""
-        system_prompt = "You are a senior copy editor. Review the article for style, clarity, and impact. Correct passive voice, simplify complex sentences, and suggest three compelling, SEO-friendly headlines."
-        user_content = self.article_text
-        schema = {
-            "type": "OBJECT", "properties": {
-                "style_suggestions": { "type": "OBJECT", "properties": {
-                    "passive_voice_corrections": {"type": "ARRAY", "items": {
-                        "type": "OBJECT", "properties": {
-                            "original": {"type": "STRING"},
-                            "suggestion": {"type": "STRING"}
-                        }
-                    }},
-                    "simplifications": {"type": "ARRAY", "items": {
-                        "type": "OBJECT", "properties": {
-                            "original": {"type": "STRING"},
-                            "suggestion": {"type": "STRING"}
-                        }
-                    }},
-                    "headline_suggestions": {"type": "ARRAY", "items": {"type": "STRING"}}
-                }}
-            }
-        }
-        return call_gemini_api(system_prompt, user_content, schema)
 
     def print_report(self):
         """Prints the final, structured report for the human verifier."""
@@ -236,6 +229,8 @@ if __name__ == "__main__":
     mock_source_list = [
         "https://www.reuters.com/innovate-inc-press-release",
         "https://www.wsj.com/tech/new-photonic-chip-details",
+        "Dr. Evelyn Reed, a leading expert in photonic technology",
+        "The 2023 Annual Report on Semiconductor Advances"
     ]
     assistant = AI_Verification_Assistant(mock_article, mock_source_list)
     assistant.run_full_verification()
