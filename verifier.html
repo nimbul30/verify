@@ -290,6 +290,19 @@
                   </div>`;
           reportContent.innerHTML += markupHtml;
         }
+
+        // Media Headlines
+        const headlines = report['Media Headlines'];
+        if (headlines && headlines.headlines && headlines.headlines.length > 0) {
+            let headlinesHtml = `<div class="report-section">
+                <h3 class="text-xl font-semibold mb-3 text-gray-800">Media Headlines</h3>
+                <ol class="list-decimal list-inside space-y-2 text-sm">`;
+            headlines.headlines.forEach(headline => {
+                headlinesHtml += `<li class="text-gray-700">${headline}</li>`;
+            });
+            headlinesHtml += `</ol></div>`;
+            reportContent.innerHTML += headlinesHtml;
+        }
       }
 
       async function call_gemini_api(
@@ -375,12 +388,18 @@
           statusText.textContent = 'Generating Markup...';
           this.verification_report['Markup System'] = await this.generate_markup();
 
+          statusText.textContent = 'Generating Headlines...';
+          this.verification_report['Media Headlines'] = await this.generate_media_headlines();
+
           return this.verification_report;
         }
 
         async run_markup_only_verification() {
           statusText.textContent = 'Generating Markup...';
           this.verification_report['Markup System'] = await this.generate_markup();
+
+          statusText.textContent = 'Generating Headlines...';
+          this.verification_report['Media Headlines'] = await this.generate_media_headlines();
           return this.verification_report;
         }
 
@@ -527,6 +546,35 @@
             schema
           );
           return result;
+        }
+
+        async generate_media_headlines() {
+            const system_prompt = `
+                You are a senior editor at a major news publication. Your task is to generate 10
+                compelling, media-friendly headlines for the provided news article. The headlines should be
+                punchy, informative, and designed to capture public interest. Ensure they are diverse in
+                style, including some that are question-based, some that are direct statements, and
+                some that are more evocative.
+            `;
+            const user_content = `ARTICLE FOR HEADLINES:\n${this.article_text}`;
+            const schema = {
+                type: 'OBJECT',
+                properties: {
+                    headlines: {
+                        type: 'ARRAY',
+                        description: 'A list of 10 distinct, media-friendly headlines.',
+                        items: { type: 'STRING' }
+                    }
+                },
+                required: ['headlines']
+            };
+            const result = await call_gemini_api(
+                this.apiKey,
+                system_prompt,
+                user_content,
+                schema
+            );
+            return result;
         }
       }
     </script>
