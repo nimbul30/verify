@@ -64,6 +64,27 @@ def call_gemini_api(system_prompt, user_content, schema=None, max_retries=3):
                     }
                 ]
             }
+        # Mock response for headline generation
+        elif "senior editor" in system_prompt:
+            return {
+                "headlines": [
+                    "Innovate Inc. Unveils 'Quantum' Smartphone with Blazing-Fast Photonic Chip.",
+                    "The Future is Now: Inside Innovate Inc.'s Groundbreaking 'Quantum' Phone.",
+                    "50% Faster: How the New Photonic Chip Powers the 'Quantum' Smartphone.",
+                    "Innovate Inc. Pushes Tech Boundaries with 'Quantum' Launch.",
+                    "Get Ready for a Quantum Leap in Mobile Technology.",
+                    "The 'Quantum' Phone is Here, and It's Changing Everything.",
+                    "CEO Jane Doe on Innovate Inc.'s Most Ambitious Project Yet.",
+                    "Inside the Tech That Makes the 'Quantum' Smartphone a Game-Changer.",
+                    "Innovate Inc. Targets Market Domination with New 'Quantum' Device.",
+                    "From Silicon Valley to Your Pocket: The Rise of the 'Quantum' Smartphone."
+                ]
+            }
+        # Mock response for markup generation
+        elif "markup expert" in system_prompt:
+            return {
+                "marked_up_text": "## Innovate Inc. Launches 'Quantum' Smartphone\n\n**Silicon Valley, CA** - In a landmark announcement, global tech giant *Innovate Inc.* launched its revolutionary 'Quantum' smartphone today."
+            }
         # Default empty mock for any other unexpected calls
         else:
             return json.loads("{}")
@@ -123,6 +144,7 @@ class AI_Verification_Assistant:
         print("--- Starting Automated Verification Process ---")
         self.phase1_triage()
         self.verification_report['Markup System'] = self.generate_markup()
+        self.verification_report['Media Headlines'] = self.generate_media_headlines()
         print("\n--- Automated Verification Process Complete ---")
         self.print_report()
 
@@ -236,6 +258,28 @@ class AI_Verification_Assistant:
         }
         return call_gemini_api(system_prompt, user_content, schema)
 
+    def generate_media_headlines(self):
+        """Uses Gemini to generate media-friendly headlines for the article."""
+        print("\n--- Generating Media Headlines ---")
+        system_prompt = (
+            "You are a senior editor at a major news publication. Your task is to generate 10 "
+            "compelling, media-friendly headlines for the provided news article. The headlines should be "
+            "punchy, informative, and designed to capture public interest. Ensure they are diverse in "
+            "style, including some that are question-based, some that are direct statements, and "
+            "some that are more evocative."
+        )
+        user_content = f"ARTICLE FOR HEADLINES:\n{self.article_text}"
+        schema = {
+            "type": "OBJECT", "properties": {
+                "headlines": {
+                    "type": "ARRAY",
+                    "description": "A list of 10 distinct, media-friendly headlines.",
+                    "items": {"type": "STRING"}
+                }
+            }, "required": ["headlines"]
+        }
+        return call_gemini_api(system_prompt, user_content, schema)
+
     def print_report(self):
         """Prints the final, structured report for the human verifier."""
         print("\n" + "="*50)
@@ -252,6 +296,14 @@ class AI_Verification_Assistant:
             print("="*50 + "\n")
             print(self.verification_report['Markup System']['marked_up_text'])
 
+        # Print the media headlines
+        if 'Media Headlines' in self.verification_report and self.verification_report['Media Headlines'].get('headlines'):
+            print("\n" + "="*50)
+            print("              MEDIA HEADLINES")
+            print("="*50 + "\n")
+            for i, headline in enumerate(self.verification_report['Media Headlines']['headlines'], 1):
+                print(f"{i}. {headline}")
+
         print("\n" + "="*50)
         print("ACTION: Human Verifier should now review this report and the article.")
         print("="*50)
@@ -261,6 +313,7 @@ class AI_Verification_Assistant:
         """Runs only the markup generation and prints the report."""
         print("--- Starting Markup-Only Process ---")
         self.verification_report['Markup System'] = self.generate_markup()
+        self.verification_report['Media Headlines'] = self.generate_media_headlines()
         print("\n--- Markup Process Complete ---")
         self.print_report()
 
