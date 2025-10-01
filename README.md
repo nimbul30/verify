@@ -91,9 +91,9 @@ The primary goal of a news article is to be readable and immediately credible. Y
 
 > _Instead of:_ "Nearly 3,500 Black Americans were lynched between 1882 and 1968 [1]."
 
-> **Do this:** "According to a report from the NAACP, nearly 3,500 Black Americans were lynched between 1882 and 1968."
+> **Do this:** "According to a [report from the NAACP](https://naacp.org/find-resources/history-explained/history-lynching-america), nearly 3,500 Black Americans were lynched between 1882 and 1968."
 
-> _Or this:_ "The NAACP reports that nearly 3,500 Black Americans were lynched between 1882 and 1968."
+> _Or this:_ "[The NAACP reports](https://naacp.org/find-resources/history-explained/history-lynching-america) that nearly 3,500 Black Americans were lynched between 1882 and 1968."
 
 ## When to Use a List at the End
 
