@@ -74,3 +74,18 @@ The final response should look like simple text in the chat window, but with all
 Core Reminder
 Mantra: "Show the markup, don't render the markup." The user needs to be able to copy the raw text, with all formatting characters intact, for their own use.
 ````
+That's an excellent question that gets to the heart of journalistic style and credibility. For an investigative news article like the one you've developed, the best practice is to cite your sources directly in the article's text through attribution and hyperlinking, rather than relying solely on a list at the end.
+Here’s a breakdown of the standard approach and why it's most effective:
+The Journalistic Standard: In-Text Attribution
+The primary goal of a news article is to be readable and immediately credible. You want your audience to trust the information as they are reading it, without having to stop and check a list at the end.
+What it looks like: Instead of using footnotes or parenthetical citations like (NAACP, 2025), you weave the source directly into the sentence.
+Why it works: It maintains the narrative flow of the article while transparently showing the reader where the information comes from. For online articles, this is almost always combined with a hyperlink.
+Example:
+Instead of: "Nearly 3,500 Black Americans were lynched between 1882 and 1968 [1]."
+Do this: "According to a report from the NAACP, nearly 3,500 Black Americans were lynched between 1882 and 1968."
+Or this: "The NAACP reports that nearly 3,500 Black Americans were lynched between 1882 and 1968."
+
+When to Use a List at the End
+While in-text attribution is primary, a separate list of sources is not a bad idea—it's just supplementary. It serves a different purpose.
+Purpose: A "Sources" or "References" section at the end is great for deep-dive investigative pieces where you want to provide a comprehensive resource for readers, researchers, or other journalists who wish to explore the topic further. It acts as a bibliography and adds another layer of transparency.
+Recommendation for your article: Use both. Prioritize in-text attribution with hyperlinks for all specific facts, statistics, and quotes. Then, you can still include a comprehensive list of all https://www.google.com/search?q=URLs at the very end under a heading like "Sources" or "Further Reading" for those who want to see all your research in one place. This gives you the best of both worlds: the seamless readability of a news article and the academic rigor of a research paper.
