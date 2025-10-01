@@ -303,6 +303,18 @@
             headlinesHtml += `</ol></div>`;
             reportContent.innerHTML += headlinesHtml;
         }
+
+        // Keywords
+        const keywords = report['Keywords'];
+        if (keywords && keywords.keywords && keywords.keywords.length > 0) {
+            let keywordsHtml = `<div class="report-section">
+                <h3 class="text-xl font-semibold mb-3 text-gray-800">Keywords</h3>
+                <div class="text-sm text-gray-700">
+                  <p>${keywords.keywords.join(', ')}</p>
+                </div>
+              </div>`;
+            reportContent.innerHTML += keywordsHtml;
+        }
       }
 
       async function call_gemini_api(
@@ -391,6 +403,9 @@
           statusText.textContent = 'Generating Headlines...';
           this.verification_report['Media Headlines'] = await this.generate_media_headlines();
 
+          statusText.textContent = 'Generating Keywords...';
+          this.verification_report['Keywords'] = await this.generate_keywords();
+
           return this.verification_report;
         }
 
@@ -400,6 +415,9 @@
 
           statusText.textContent = 'Generating Headlines...';
           this.verification_report['Media Headlines'] = await this.generate_media_headlines();
+
+          statusText.textContent = 'Generating Keywords...';
+          this.verification_report['Keywords'] = await this.generate_keywords();
           return this.verification_report;
         }
 
@@ -567,6 +585,34 @@
                     }
                 },
                 required: ['headlines']
+            };
+            const result = await call_gemini_api(
+                this.apiKey,
+                system_prompt,
+                user_content,
+                schema
+            );
+            return result;
+        }
+
+        async generate_keywords() {
+            const system_prompt = `
+                You are a search engine optimization (SEO) expert. Your task is to generate 10-15
+                relevant keyword search terms for the provided news article. These keywords should be
+                what a user might search for on Google. If a keyword is two words,
+                combine them with a hyphen, for example: 'sad-clown'.
+            `;
+            const user_content = `ARTICLE FOR KEYWORDS:\n${this.article_text}`;
+            const schema = {
+                type: 'OBJECT',
+                properties: {
+                    keywords: {
+                        type: 'ARRAY',
+                        description: 'A list of 10-15 distinct keyword search terms.',
+                        items: { type: 'STRING' }
+                    }
+                },
+                required: ['keywords']
             };
             const result = await call_gemini_api(
                 this.apiKey,
