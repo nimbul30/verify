@@ -469,8 +469,9 @@
         }
 
         async _map_claims_to_sources() {
+          const today = new Date().toISOString().split('T')[0];
           const system_prompt =
-            'You are a verification expert. Analyze the user-provided article. Create a list of the key claims from the article. Based on the source URLs provided and your own knowledge, assess if these claims are plausible and likely to be supported. State this assessment clearly.';
+            `You are a verification expert. Today's date is ${today}. Analyze the user-provided article. Create a list of the key claims from the article. Based on the source URLs provided and your own knowledge, assess if these claims are plausible and likely to be supported. State this assessment clearly. Do not make speculative statements about future dates.`;
           const user_content = `ARTICLE:\n${
             this.article_text
           }\n\nSOURCE URLs:\n${this.source_urls.join('\n')}`;
