@@ -130,8 +130,10 @@ class AI_Verification_Assistant:
     def phase1_triage(self):
         print("\n--- Running Phase 1: Triage ---")
         source_credibility_analysis = self._verify_sources()
+        claim_verification = self._deep_claim_verification()
         self.verification_report['Phase 1: Triage'] = {
             'Source Credibility Analysis': source_credibility_analysis,
+            'Deep Claim Verification': claim_verification
         }
 
     def _verify_sources(self):
@@ -180,6 +182,34 @@ class AI_Verification_Assistant:
                     "description": "A brief explanation for the credibility rating."
                 }
             }, "required": ["credibility_rating", "justification"]
+        }
+        return call_gemini_api(system_prompt, user_content, schema)
+
+    def _deep_claim_verification(self):
+        """Uses Gemini to perform deep verification of article claims against source content."""
+        today = time.strftime("%Y-%m-%d")
+        system_prompt = (
+            f"You are a meticulous fact-checker. Today's date is {today}. From the article, extract each key claim. "
+            "For each claim, search the provided source texts for direct evidence. "
+            "You must classify the evidence for each claim as either 'Supported', 'Contradicted', or 'No Evidence Found'. "
+            "If evidence is found, you must provide the exact quote from the source text as 'evidence_quote'. "
+            "Do not make speculative statements about future dates."
+        )
+        user_content = f"ARTICLE TO VERIFY:\n{self.article_text}\n\nSOURCE TEXTS:\n{''.join(self.sources_content.values())}"
+        schema = {
+            "type": "OBJECT", "properties": {
+                "verified_claims": { "type": "ARRAY", "items": {
+                    "type": "OBJECT", "properties": {
+                        "claim": {"type": "STRING", "description": "The specific claim extracted from the article."},
+                        "verification_status": {
+                            "type": "STRING",
+                            "enum": ["Supported", "Contradicted", "No Evidence Found"],
+                            "description": "The verification status of the claim."
+                        },
+                        "evidence_quote": {"type": "STRING", "description": "The direct quote from the source text that supports or contradicts the claim. Should be empty if no evidence is found."}
+                    }, "required": ["claim", "verification_status", "evidence_quote"]
+                }}
+            }
         }
         return call_gemini_api(system_prompt, user_content, schema)
 
