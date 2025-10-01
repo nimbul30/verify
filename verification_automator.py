@@ -85,6 +85,23 @@ def call_gemini_api(system_prompt, user_content, schema=None, max_retries=3):
             return {
                 "marked_up_text": "## Innovate Inc. Launches 'Quantum' Smartphone\n\n**Silicon Valley, CA** - In a landmark announcement, global tech giant *Innovate Inc.* launched its revolutionary 'Quantum' smartphone today."
             }
+        # Mock response for keyword generation
+        elif "search engine optimization (SEO) expert" in system_prompt:
+            return {
+                "keywords": [
+                    "Innovate-Inc",
+                    "Quantum-smartphone",
+                    "photonic-chip",
+                    "processing-speed",
+                    "tech-giant",
+                    "Jane-Doe",
+                    "Silicon-Valley",
+                    "mobile-technology",
+                    "smartphone-launch",
+                    "Quantum-phone",
+                    "sad-clown"
+                ]
+            }
         # Default empty mock for any other unexpected calls
         else:
             return json.loads("{}")
@@ -145,6 +162,7 @@ class AI_Verification_Assistant:
         self.phase1_triage()
         self.verification_report['Markup System'] = self.generate_markup()
         self.verification_report['Media Headlines'] = self.generate_media_headlines()
+        self.verification_report['Keywords'] = self.generate_keywords()
         print("\n--- Automated Verification Process Complete ---")
         self.print_report()
 
@@ -280,6 +298,27 @@ class AI_Verification_Assistant:
         }
         return call_gemini_api(system_prompt, user_content, schema)
 
+    def generate_keywords(self):
+        """Uses Gemini to generate keyword search terms for the article."""
+        print("\n--- Generating Keywords ---")
+        system_prompt = (
+            "You are a search engine optimization (SEO) expert. Your task is to generate 10-15 "
+            "relevant keyword search terms for the provided news article. These keywords should be "
+            "what a user might search for on Google. If a keyword is two words, "
+            "combine them with a hyphen, for example: 'sad-clown'."
+        )
+        user_content = f"ARTICLE FOR KEYWORDS:\n{self.article_text}"
+        schema = {
+            "type": "OBJECT", "properties": {
+                "keywords": {
+                    "type": "ARRAY",
+                    "description": "A list of 10-15 distinct keyword search terms.",
+                    "items": {"type": "STRING"}
+                }
+            }, "required": ["keywords"]
+        }
+        return call_gemini_api(system_prompt, user_content, schema)
+
     def print_report(self):
         """Prints the final, structured report for the human verifier."""
         print("\n" + "="*50)
@@ -304,6 +343,14 @@ class AI_Verification_Assistant:
             for i, headline in enumerate(self.verification_report['Media Headlines']['headlines'], 1):
                 print(f"{i}. {headline}")
 
+        # Print the keywords
+        if 'Keywords' in self.verification_report and self.verification_report['Keywords'].get('keywords'):
+            print("\n" + "="*50)
+            print("                 KEYWORDS")
+            print("="*50 + "\n")
+            # print keywords comma separated
+            print(', '.join(self.verification_report['Keywords']['keywords']))
+
         print("\n" + "="*50)
         print("ACTION: Human Verifier should now review this report and the article.")
         print("="*50)
@@ -314,6 +361,7 @@ class AI_Verification_Assistant:
         print("--- Starting Markup-Only Process ---")
         self.verification_report['Markup System'] = self.generate_markup()
         self.verification_report['Media Headlines'] = self.generate_media_headlines()
+        self.verification_report['Keywords'] = self.generate_keywords()
         print("\n--- Markup Process Complete ---")
         self.print_report()
 
