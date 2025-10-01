@@ -188,15 +188,11 @@ class AI_Verification_Assistant:
         print("\n--- Generating Markup ---")
         system_prompt = """
             You are a markup expert. Your task is to apply markdown formatting to the provided article text.
-            Follow these rules precisely:
-            - Use double line breaks for new paragraphs.
-            - Use ** for bold text.
-            - Use _ for italicized text.
-            - Use ~~ for strikethrough text.
-            - Use #, ##, ###, #### for headers of different sizes.
-            - Use - for generic list items.
-            - Use 1., 2., 3. for numbered list items.
-            - Use > for quotes.
+            Your main goal is to make the article easy to read.
+            Follow these rules:
+            - Create more paragraphs by using double line breaks to space out the text.
+            - Use italics (*) for emphasis where appropriate to make key points stand out.
+            - Use standard markdown for other elements like headers (#), bold (**), lists (- or 1.), and quotes (>).
             The user needs the raw markdown text with all characters like #, *, etc., visible. Do not render the markdown.
         """
         user_content = f"ARTICLE TO MARKUP:\n{self.article_text}"
