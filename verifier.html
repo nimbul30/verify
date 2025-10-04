@@ -111,6 +111,12 @@
               >
                 Markup Only
               </button>
+              <button
+                id="parse-button"
+                class="w-full bg-purple-600 text-white font-bold py-3 px-4 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition duration-150 ease-in-out"
+              >
+                Parse
+              </button>
             </div>
 
             <div id="status-container" class="mt-4 text-center">
@@ -140,6 +146,7 @@
     <script>
       const verifyButton = document.getElementById('verify-button');
       const markupButton = document.getElementById('markup-button');
+      const parseButton = document.getElementById('parse-button');
       const articleInput = document.getElementById('article-input');
       const sourcesInput = document.getElementById('sources-input');
       const apiKeyInput = document.getElementById('api-key-input');
@@ -225,13 +232,47 @@
         renderHtmlReport(report);
         reportOutput.classList.remove('hidden');
         loader.classList.add('hidden');
-        statusText.textContent = 'Markup Complete!';
+        markupButton.classList.remove('opacity-50', 'cursor-not-allowed');
+      });
+
+      parseButton.addEventListener('click', async () => {
+        const articleText = articleInput.value.trim();
+
+        if (!articleText) {
+          alert('Please provide an article to parse.');
+          return;
+        }
+
+        // Reset UI
+        reportOutput.classList.add('hidden');
+        loader.classList.remove('hidden');
+        verifyButton.disabled = true;
+        verifyButton.classList.add('opacity-50', 'cursor-not-allowed');
+        markupButton.disabled = true;
+        markupButton.classList.add('opacity-50', 'cursor-not-allowed');
+        parseButton.disabled = true;
+        parseButton.classList.add('opacity-50', 'cursor-not-allowed');
+
+        const assistant = new AI_Verification_Assistant(
+          articleText,
+          [], // No sources needed for parsing
+          '' // No API key needed for parsing
+        );
+        const report = await assistant.run_parser_only();
+
+        // Render and Display report
+        renderHtmlReport(report);
+        reportOutput.classList.remove('hidden');
+        loader.classList.add('hidden');
+        statusText.textContent = 'Parsing Complete!';
 
         // Re-enable buttons
         verifyButton.disabled = false;
         verifyButton.classList.remove('opacity-50', 'cursor-not-allowed');
         markupButton.disabled = false;
         markupButton.classList.remove('opacity-50', 'cursor-not-allowed');
+        parseButton.disabled = false;
+        parseButton.classList.remove('opacity-50', 'cursor-not-allowed');
       });
 
       function renderHtmlReport(report) {
@@ -248,7 +289,7 @@
           const assessment_map = new Map();
           if (citation_analysis && citation_analysis.citation_assessments) {
             citation_analysis.citation_assessments.forEach(item => {
-              assessment_map.set(item.citation, item.assessment);
+              assessment_map.set(item.citation, {assessment: item.assessment, publication_date: item.publication_date});
             });
           }
 
@@ -258,11 +299,13 @@
             phase1Html += `<h4 class="text-lg font-semibold mb-2 text-gray-700">Source Link Analysis</h4><ul class="list-disc list-inside space-y-1 text-sm">`;
             links.forEach((link) => {
               if (link.type === 'citation') {
-                const assessment = assessment_map.get(link.text);
-                phase1Html += `<li>${link.text} - <span class="font-medium text-gray-600">${assessment || ''}</span></li>`;
+                const assessment_obj = assessment_map.get(link.text);
+                const assessment = assessment_obj ? assessment_obj.assessment : '';
+                const publication_date = assessment_obj ? assessment_obj.publication_date : '';
+                phase1Html += `<li>${link.text} - <span class="font-medium text-gray-600">${assessment || ''}</span> (Published: ${publication_date})</li>`;
               } else {
                 const linked_text = link.text.replace(link.url, `<a href="${link.url}" target="_blank" class="text-blue-600 hover:underline">${link.url}</a>`);
-                phase1Html += `<li>${linked_text} - <span class="font-medium">${link.domain_type}</span></li>`;
+                phase1Html += `<li>${linked_text} - <span class="font-medium">${link.domain_type}</span> (Published: ${link.publication_date}, Accessed: ${link.accessed_date})</li>`;
               }
             });
             phase1Html += `</ul>`;
@@ -273,12 +316,22 @@
           if (claims && claims.length > 0) {
             phase1Html += `<h4 class="text-lg font-semibold mt-4 mb-2 text-gray-700">Claim-to-Source Mapping</h4><ul class="list-decimal list-inside space-y-2 text-sm">`;
             claims.forEach((item) => {
-              phase1Html += `<li><strong>Claim:</strong> ${item.claim}<br><strong>Assessment:</strong> ${item.source_evidence_assessment}</li>`;
+              phase1Html += `<li><strong>Claim:</strong> ${item.claim}<br><strong>Assessment:</strong> ${item.source_evidence_assessment}<br><strong>Source:</strong> ${item.source_citation}</li>`;
             });
             phase1Html += `</ul>`;
           }
           phase1Html += `</div>`;
           reportContent.innerHTML += phase1Html;
+        }
+
+        // Article Summary
+        const summary = report['Article Summary'];
+        if (summary && summary.summary) {
+          let summaryHtml = `<div class="report-section">
+                    <h3 class="text-xl font-semibold mb-3 text-gray-800">Article Summary</h3>
+                    <p class="text-sm text-gray-700">${summary.summary}</p>
+                  </div>`;
+          reportContent.innerHTML += summaryHtml;
         }
 
         // Markup System
@@ -314,6 +367,47 @@
                 </div>
               </div>`;
             reportContent.innerHTML += keywordsHtml;
+        }
+
+        // Bias Analysis
+        const bias = report['Bias Analysis'];
+        if (bias && bias.bias_analysis && bias.bias_analysis.length > 0) {
+            let biasHtml = `<div class="report-section">
+                <h3 class="text-xl font-semibold mb-3 text-gray-800">Bias Analysis</h3>
+                <ul class="list-disc list-inside space-y-2 text-sm">`;
+            bias.bias_analysis.forEach(item => {
+                biasHtml += `<li><strong>Biased Phrase:</strong> ${item.biased_phrase}<br><strong>Explanation:</strong> ${item.explanation}<br><strong>Suggestion:</strong> ${item.suggestion}</li>`;
+            });
+            biasHtml += `</ul></div>`;
+            reportContent.innerHTML += biasHtml;
+        }
+
+        // Suggested Reading
+        const suggested_reading = report['Suggested Reading'];
+        if (suggested_reading && suggested_reading.suggested_reading && suggested_reading.suggested_reading.length > 0) {
+            let readingHtml = `<div class="report-section">
+                <h3 class="text-xl font-semibold mb-3 text-gray-800">Suggested Reading</h3>
+                <ul class="list-disc list-inside space-y-2 text-sm">`;
+            suggested_reading.suggested_reading.forEach(item => {
+                readingHtml += `<li><strong>${item.title}</strong> by ${item.author}<br>${item.description}</li>`;
+            });
+            readingHtml += `</ul></div>`;
+            reportContent.innerHTML += readingHtml;
+        }
+
+        // Parsed Article
+        const parsed_article = report['Parsed Article'];
+        if (parsed_article && parsed_article.chunks && parsed_article.chunks.length > 0) {
+            let parsedHtml = `<div class="report-section">
+                <h3 class="text-xl font-semibold mb-3 text-gray-800">Parsed Article</h3>`;
+            parsed_article.chunks.forEach((chunk, index) => {
+                parsedHtml += `<div class="mb-2">
+                    <h4 class="text-lg font-semibold text-gray-700">Chunk ${index + 1}</h4>
+                    <p class="text-sm text-gray-600">${chunk}</p>
+                </div>`;
+            });
+            parsedHtml += `</div>`;
+            reportContent.innerHTML += parsedHtml;
         }
       }
 
@@ -397,6 +491,9 @@
           statusText.textContent = 'Running Phase 1: Triage...';
           await this.phase1_triage();
 
+          statusText.textContent = 'Generating Summary...';
+          this.verification_report['Article Summary'] = await this.generate_summary();
+
           statusText.textContent = 'Generating Markup...';
           this.verification_report['Markup System'] = await this.generate_markup();
 
@@ -405,11 +502,20 @@
 
           statusText.textContent = 'Generating Keywords...';
           this.verification_report['Keywords'] = await this.generate_keywords();
+
+          statusText.textContent = 'Analyzing for Bias...';
+          this.verification_report['Bias Analysis'] = await this.analyze_bias();
+
+          statusText.textContent = 'Generating Suggested Reading...';
+          this.verification_report['Suggested Reading'] = await this.generate_suggested_reading();
 
           return this.verification_report;
         }
 
         async run_markup_only_verification() {
+          statusText.textContent = 'Generating Summary...';
+          this.verification_report['Article Summary'] = await this.generate_summary();
+
           statusText.textContent = 'Generating Markup...';
           this.verification_report['Markup System'] = await this.generate_markup();
 
@@ -418,11 +524,24 @@
 
           statusText.textContent = 'Generating Keywords...';
           this.verification_report['Keywords'] = await this.generate_keywords();
+
+          statusText.textContent = 'Analyzing for Bias...';
+          this.verification_report['Bias Analysis'] = await this.analyze_bias();
+
+          statusText.textContent = 'Generating Suggested Reading...';
+          this.verification_report['Suggested Reading'] = await this.generate_suggested_reading();
+
+          return this.verification_report;
+        }
+
+        async run_parser_only() {
+          statusText.textContent = 'Parsing Article...';
+          this.verification_report['Parsed Article'] = this.parse_article();
           return this.verification_report;
         }
 
         async phase1_triage() {
-          const source_check_results = this._check_source_links();
+          const source_check_results = await this._check_source_links();
           const citations = source_check_results
             .filter((source) => source.type === 'citation')
             .map((source) => source.text);
@@ -440,46 +559,60 @@
           };
         }
 
-        _check_source_links() {
+        async _check_source_links() {
           const url_regex = /https?:\/\/[^\s/$.?#].[^\s]*/i;
-          return this.source_urls.map((source) => {
+          const source_details_promises = this.source_urls.map(async (source) => {
             const url_match = source.match(url_regex);
             if (url_match) {
-              try {
-                const parsed_url = new URL(url_match[0]);
-                const domain = parsed_url.hostname;
-                const tld = domain.split('.').pop();
-                let domain_type = 'General/Blog';
-
-                if (['gov', 'edu'].includes(tld)) {
-                  domain_type = 'High-Reputation (Government/Education)';
-                } else if (
-                  ['reuters.com', 'apnews.com', 'bbc.com', 'wsj.com'].some((d) =>
-                    domain.includes(d)
-                  )
-                ) {
-                  domain_type = 'Reputable News Source';
-                }
-                return {
-                  type: 'url',
-                  text: source,
-                  url: url_match[0],
-                  status: 'Domain Analyzed (Live Check N/A)',
-                  domain_type,
-                };
-              } catch (e) {
-                // Should not happen if regex is correct, but as a fallback
-                return { type: 'citation', text: source };
-              }
+              const url = url_match[0];
+              const details = await this._get_source_details(url);
+              return {
+                type: 'url',
+                text: source,
+                url: url,
+                status: 'Domain Analyzed',
+                domain_type: details.source_type,
+                publication_date: details.publication_date,
+                accessed_date: new Date().toISOString().split('T')[0]
+              };
             } else {
               return { type: 'citation', text: source };
             }
           });
+          return Promise.all(source_details_promises);
+        }
+
+        async _get_source_details(url) {
+          const system_prompt = `
+            You are a source analysis expert. For the given URL, identify the type of source (e.g., newspaper, online news corp., blog, research journal, etc.) and the publication date.
+          `;
+          const user_content = `URL: ${url}`;
+          const schema = {
+            type: 'OBJECT',
+            properties: {
+              source_type: {
+                type: 'STRING',
+                description: 'The type of the source.'
+              },
+              publication_date: {
+                type: 'STRING',
+                description: 'The publication date of the source (YYYY-MM-DD).'
+              }
+            },
+            required: ['source_type', 'publication_date']
+          };
+          const result = await call_gemini_api(
+            this.apiKey,
+            system_prompt,
+            user_content,
+            schema
+          );
+          return result;
         }
 
         async _analyze_citations(citations) {
           const system_prompt =
-            'You are a source analysis expert. For each of the following citations, provide a brief assessment of its likely reputation and relevance. For example, is it a reputable academic journal, a mainstream news source, a partisan blog, etc.?';
+            'You are a source analysis expert. For each of the following citations, provide a brief assessment of its likely reputation and relevance. For example, is it a reputable academic journal, a mainstream news source, a partisan blog, etc.? Also provide the publication date if available.';
           const user_content = `CITATIONS:\n${citations.join('\n')}`;
           const schema = {
             type: 'OBJECT',
@@ -491,8 +624,9 @@
                   properties: {
                     citation: { type: 'STRING' },
                     assessment: { type: 'STRING' },
+                    publication_date: { type: 'STRING' },
                   },
-                  required: ['citation', 'assessment'],
+                  required: ['citation', 'assessment', 'publication_date'],
                 },
               },
             },
@@ -508,7 +642,7 @@
         async _map_claims_to_sources() {
           const today = new Date().toISOString().split('T')[0];
           const system_prompt =
-            `You are a verification expert. Today's date is ${today}. Analyze the user-provided article. Create a list of the key claims from the article. Based on the source URLs provided and your own knowledge, assess if these claims are plausible and likely to be supported. State this assessment clearly. Do not make speculative statements about future dates.`;
+            `You are a verification expert. Today's date is ${today}. Analyze the user-provided article. Create a list of the key claims from the article. Based on the source URLs provided and your own knowledge, assess if these claims are plausible and likely to be supported. For each claim, provide a detailed explanation of why it is plausible or not, and cite the specific source (URL or text) that supports your assessment.`;
           const user_content = `ARTICLE:\n${
             this.article_text
           }\n\nSOURCE URLs:\n${this.source_urls.join('\n')}`;
@@ -522,8 +656,9 @@
                   properties: {
                     claim: { type: 'STRING' },
                     source_evidence_assessment: { type: 'STRING' },
+                    source_citation: { type: 'STRING' },
                   },
-                  required: ['claim', 'source_evidence_assessment'],
+                  required: ['claim', 'source_evidence_assessment', 'source_citation'],
                 },
               },
             },
@@ -536,11 +671,37 @@
           );
         }
 
+        async generate_summary() {
+          const system_prompt = `
+            You are a content analyst. Your task is to draft a very small paragraph of the key-points of the article that helps the reader understand the context of the article.
+          `;
+          const user_content = `ARTICLE TO SUMMARIZE:\n${this.article_text}`;
+          const schema = {
+            type: 'OBJECT',
+            properties: {
+              summary: {
+                type: 'STRING',
+                description: 'A short summary of the article.'
+              }
+            },
+            required: ['summary']
+          };
+          const result = await call_gemini_api(
+            this.apiKey,
+            system_prompt,
+            user_content,
+            schema
+          );
+          return result;
+        }
+
+
         async generate_markup() {
           const system_prompt = `
             You are a markup expert. Your task is to apply markdown formatting to the provided article text.
             Your main goal is to make the article easy to read.
             Follow these rules:
+            - Replace every single space with a double space.
             - Create more paragraphs by using double line breaks to space out the text.
             - Use italics (*) for emphasis where appropriate to make key points stand out.
             - Use standard markdown for other elements like headers (#), bold (**), lists (- or 1.), and quotes (>).
@@ -621,6 +782,90 @@
                 schema
             );
             return result;
+        }
+
+        async analyze_bias() {
+            const system_prompt = `
+                You are a language and bias expert. Review the article for neutral language and absence of bias.
+                Provide a detailed analysis of any biased language or framing you find.
+                For each issue, provide a suggestion for how to improve it to be more neutral.
+            `;
+            const user_content = `ARTICLE TO ANALYZE:\n${this.article_text}`;
+            const schema = {
+                type: 'OBJECT',
+                properties: {
+                    bias_analysis: {
+                        type: 'ARRAY',
+                        items: {
+                            type: 'OBJECT',
+                            properties: {
+                                biased_phrase: { type: 'STRING' },
+                                explanation: { type: 'STRING' },
+                                suggestion: { type: 'STRING' },
+                            },
+                            required: ['biased_phrase', 'explanation', 'suggestion'],
+                        },
+                    },
+                },
+            };
+            const result = await call_gemini_api(
+                this.apiKey,
+                system_prompt,
+                user_content,
+                schema
+            );
+            return result;
+        }
+
+        async generate_suggested_reading() {
+            const system_prompt = `
+                You are a research assistant. Based on the provided article, generate a list of 3-5 suggested readings (books, articles, etc.) on the same subject matter.
+                For each suggestion, provide the title, author, and a brief description.
+            `;
+            const user_content = `ARTICLE:\n${this.article_text}`;
+            const schema = {
+                type: 'OBJECT',
+                properties: {
+                    suggested_reading: {
+                        type: 'ARRAY',
+                        items: {
+                            type: 'OBJECT',
+                            properties: {
+                                title: { type: 'STRING' },
+                                author: { type: 'STRING' },
+                                description: { type: 'STRING' },
+                            },
+                            required: ['title', 'author', 'description'],
+                        },
+                    },
+                },
+            };
+            const result = await call_gemini_api(
+                this.apiKey,
+                system_prompt,
+                user_content,
+                schema
+            );
+            return result;
+        }
+
+        parse_article() {
+            const chunks = [];
+            let remaining_text = this.article_text;
+            while (remaining_text.length > 0) {
+                if (remaining_text.length <= 450) {
+                    chunks.push(remaining_text);
+                    break;
+                }
+                let chunk = remaining_text.substring(0, 450);
+                let last_space = chunk.lastIndexOf(' ');
+                if (last_space !== -1) {
+                    chunk = chunk.substring(0, last_space);
+                }
+                chunks.push(chunk);
+                remaining_text = remaining_text.substring(chunk.length + 1);
+            }
+            return { chunks: chunks };
         }
       }
     </script>

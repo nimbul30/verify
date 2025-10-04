@@ -1,0 +1,4 @@
+We need AI to draft a very small paragraph of the key-point of the article that helps the reader understand the context of the article, so add that to your AI-Assisted Verification Tool
+We need a robust investigation on the sources the user puts in the website. We need to know more about the sources and if they are creditble. We need accurate information about the type of source (newpaper, online news corp., blog, research journal, etc...) we need the date of the source for when it was published and when the user accessed it. 
+When Verifing a claim, use more details about how the claim maybe creditble or uncreditble.
+Review the article for neutral language and absence of bias. Make sure this is done correctly and make sure its robost and offer suggestions to improve the results. 
